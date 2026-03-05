@@ -1,93 +1,106 @@
-// src/components/documents/document-detail.tsx
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { formatDistanceToNow } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
-import { ChevronLeft, FileText, Mic, ChevronDown, ChevronUp } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import type { Document } from '@/types'
+import { useState, useEffect } from 'react'
+import { useCompletion } from 'ai/react'
+import { toast } from 'sonner'
+import type { Document, Insight, LensType } from '@/types'
+import { useAuthStore } from '@/store'
+import { LensSelector } from '@/components/insights/lens-selector'
+import { InsightResult } from '@/components/insights/insight-result'
 
 interface DocumentDetailProps {
   document: Document
 }
 
-const FOLD_THRESHOLD = 500
-
 export function DocumentDetail({ document }: DocumentDetailProps) {
-  const [isExpanded, setIsExpanded] = useState(document.raw_content.length <= FOLD_THRESHOLD)
+  const { updateCredits } = useAuthStore()
+  const [insights, setInsights] = useState<Insight[]>([])
+  const [currentLensType, setCurrentLensType] = useState<string>('')
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
-  const timeAgo = formatDistanceToNow(new Date(document.created_at), {
-    addSuffix: true,
-    locale: zhCN,
+  const { completion, isLoading, complete } = useCompletion({
+    api: '/api/insights',
+    onFinish: (_prompt, completion) => {
+      // 刷新历史 insights
+      fetchInsights()
+      toast.success('分析完成')
+    },
+    onError: (error) => {
+      const msg = error.message ?? ''
+      if (msg.includes('402')) {
+        toast.error('积分不足，请充值后继续')
+      } else if (msg.includes('429')) {
+        toast.error('操作太频繁，请稍后再试')
+      } else {
+        toast.error('分析失败，请稍后重试')
+      }
+    },
   })
 
-  const displayContent = isExpanded
-    ? document.raw_content
-    : document.raw_content.slice(0, FOLD_THRESHOLD)
+  const fetchInsights = async () => {
+    const res = await fetch(`/api/insights?documentId=${document.id}`)
+    if (res.ok) {
+      const { insights: data } = await res.json()
+      setInsights(data ?? [])
+    }
+  }
+
+  useEffect(() => {
+    fetchInsights()
+  }, [document.id])
+
+  const handleAnalyze = async (lensType: LensType) => {
+    setCurrentLensType(lensType)
+    await complete('', {
+      body: { documentId: document.id, lensType },
+    })
+    // 分析完成后更新积分余额（通过重新获取 profile 或用 onFinish 传回的数据）
+    // 简单方案：让 TopBar 在下次刷新时更新，或通过 useAuthStore 手动更新
+  }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
-        <Link href="/">
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          返回列表
-        </Link>
-      </Button>
-
-      <h1 className="text-2xl font-bold mb-2">
-        {document.title ?? document.raw_content.slice(0, 50)}
-      </h1>
-
-      <div className="flex items-center gap-3 text-sm text-zinc-500 mb-6">
-        {document.source_type === 'voice' ? (
-          <span className="flex items-center gap-1">
-            <Mic className="h-3.5 w-3.5" /> 语音输入
+    <div className="container max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+      {/* 原文区域（可折叠） */}
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left"
+        >
+          <span className="font-medium text-sm">原文内容</span>
+          <span className="text-zinc-400 text-xs">
+            {document.char_count} 字 · {isCollapsed ? '展开' : '收起'}
           </span>
-        ) : (
-          <span className="flex items-center gap-1">
-            <FileText className="h-3.5 w-3.5" /> 文字输入
-          </span>
-        )}
-        <span>{document.char_count.toLocaleString()} 字</span>
-        <span>{timeAgo}</span>
-      </div>
-
-      <Separator className="mb-6" />
-
-      <div>
-        <h2 className="text-base font-semibold text-zinc-700 mb-3">原始内容</h2>
-        <div className="whitespace-pre-wrap text-sm text-zinc-700 leading-relaxed">
-          {displayContent}
-          {!isExpanded && document.raw_content.length > FOLD_THRESHOLD && '…'}
-        </div>
-
-        {document.raw_content.length > FOLD_THRESHOLD && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="mt-3 text-zinc-500"
-          >
-            {isExpanded ? (
-              <><ChevronUp className="h-4 w-4 mr-1" />收起</>
-            ) : (
-              <><ChevronDown className="h-4 w-4 mr-1" />展开全文</>
-            )}
-          </Button>
+        </button>
+        {!isCollapsed && (
+          <div className="px-4 pb-4 text-sm text-zinc-700 whitespace-pre-wrap leading-relaxed border-t border-zinc-100">
+            {document.raw_content}
+          </div>
         )}
       </div>
 
-      <Separator className="my-8" />
-
-      <div className="space-y-4">
-        <h2 className="text-base font-semibold text-zinc-700">AI 分析</h2>
-        <div className="rounded-lg border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-400">
-          透镜选择和 AI 分析将在 Day 4 实现
-        </div>
+      {/* 透镜选择器 */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+        <LensSelector onAnalyze={handleAnalyze} isLoading={isLoading} />
       </div>
+
+      {/* 流式结果（分析中时显示） */}
+      {isLoading && completion && (
+        <InsightResult
+          isStreaming
+          streamContent={completion}
+          lensType={currentLensType}
+        />
+      )}
+
+      {/* 历史分析结果 */}
+      {insights.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-zinc-500">历史分析</h3>
+          {insights.map((insight) => (
+            <InsightResult key={insight.id} insight={insight} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
