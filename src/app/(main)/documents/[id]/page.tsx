@@ -1,26 +1,31 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { notFound } from 'next/navigation'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { DocumentDetail } from '@/components/documents/document-detail'
 
-export default async function DocumentDetailPage({
-  params,
-}: {
+interface Props {
   params: Promise<{ id: string }>
-}) {
-  const { id } = await params
+}
 
-  return (
-    <div className="container max-w-4xl mx-auto p-4 md:p-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>文档详情</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-16 text-zinc-500">
-            文档详情（Day 3 实现）
-            <br />
-            Document ID: {id}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+export default async function DocumentPage({ params }: Props) {
+  const { id } = await params
+  const user = await getCurrentUser()
+
+  if (!user) {
+    notFound()
+  }
+
+  const supabase = await createClient()
+  const { data: document, error } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .eq('is_deleted', false)
+    .single()
+
+  if (error || !document) {
+    notFound()
+  }
+
+  return <DocumentDetail document={document} />
 }

@@ -43,9 +43,8 @@ export default function RegisterPage() {
       return
     }
 
-    toast.success('注册成功，已自动登录')
-    router.push('/')
-    router.refresh()
+    toast.success('注册成功！请查收验证邮件，完成邮箱验证后即可登录')
+    router.push('/login')
   }
 
   return (

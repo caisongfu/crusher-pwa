@@ -7,7 +7,7 @@ const PUBLIC_ROUTES = ['/login', '/register']
 const WEBHOOK_ROUTES = ['/api/payment/webhook']
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  let supabaseResponse = NextResponse.next({ request, headers: request.headers })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +21,6 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -43,14 +42,24 @@ export async function middleware(request: NextRequest) {
   // 公开路由：已登录则重定向到首页
   if (PUBLIC_ROUTES.includes(pathname)) {
     if (user) {
-      return NextResponse.redirect(new URL('/', request.url))
+      const redirectResponse = NextResponse.redirect(new URL('/', request.url))
+      redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+      return redirectResponse
     }
+    supabaseResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
     return supabaseResponse
   }
 
-  // 未登录：重定向到登录页
+  // 未登录：重定向到登录页，并主动清理浏览器 cookies
   if (!user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const redirectResponse = NextResponse.redirect(new URL('/login', request.url))
+    redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+
+    // 清理所有可能的 Supabase cookies（防止重定向循环）
+    redirectResponse.cookies.set('sb-access-token', '', { maxAge: 0, path: '/' })
+    redirectResponse.cookies.set('sb-refresh-token', '', { maxAge: 0, path: '/' })
+
+    return redirectResponse
   }
 
   // Admin 路由：额外验证角色
@@ -62,7 +71,9 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (profile?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url))
+      const redirectResponse = NextResponse.redirect(new URL('/', request.url))
+      redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+      return redirectResponse
     }
   }
 
