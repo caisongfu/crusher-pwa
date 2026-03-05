@@ -1,6 +1,6 @@
 # Crusher · 碎石记 · 产品设计全案
 
-> 最后更新：2026-03-04 v3
+> 最后更新：2026-03-05 v4
 > 状态：设计定稿，待开发
 > 开发周期：9天（双端并重 + 完整版管理后台）
 
@@ -15,7 +15,7 @@
 | **核心价值** | 捕捉原始内容（文字/语音）→ AI 一键结构化为专业文档 |
 | **目标用户** | 软件研发公司团队成员（产品、开发、项目经理） |
 | **核心场景** | 客户沟通记录 → 甲方需求文档；会议流水账 → 标准会议纪要 |
-| **商业模式** | 购买积分制（按量付费，字符分级计费），虎皮椒支付自动到账 |
+| **商业模式** | 购买积分制（按量付费，字符分级计费），支付方式可灵活切换 |
 | **适配策略** | **双端并重**：PC 侧边栏布局为主，移动端底部导航为辅 |
 
 ---
@@ -75,31 +75,58 @@
 
 ### 模块 E：积分与支付系统
 
+**设计原则：支付方式与业务逻辑解耦**
+
+```
+┌─────────────────────────────────────────────────┐
+│  业务层（订单 + 积分）                            │
+│  ↓ 通过统一接口调用                              │
+│  支付抽象层（PaymentProvider Interface）         │
+│  ↓ 具体实现可随时切换                            │
+│  [虎皮椒] [支付宝官方] [PayPal] [手动转账]        │
+└─────────────────────────────────────────────────┘
+```
+
 **用户侧：**
 - 实时查看当前积分余额（顶部导航栏常驻显示）
 - 输入框实时显示当前字数 + **动态预览本次消耗积分数**
 - 消费明细记录（每次分析的积分扣减记录）
-- 充值入口 → 跳转至虎皮椒支付页面（微信支付 / 支付宝）
+- **充值入口（MVP 阶段保留 UI，暂不可用）**
+  - 显示套餐选择界面
+  - 点击后提示："支付功能开发中，如需充值请联系管理员"
+  - 提供 PayPal 收款地址：PayPal.Me/SoulfulCai（用户手动转账后联系管理员）
 
-**支付流程：**
+**支付流程（架构设计，MVP 暂不实现）：**
 ```
 用户点击"购买积分" → 选择套餐
     ↓
-跳转虎皮椒支付页面（微信/支付宝扫码或跳转）
+【支付抽象层】根据配置选择支付渠道
     ↓
-支付成功 → 虎皮椒 Webhook 回调我方 API
+├─ 虎皮椒：跳转支付页 → Webhook 回调 → 自动充积分
+├─ 支付宝官方：生成订单 → 异步通知 → 自动充积分
+├─ PayPal：显示收款链接 → 用户手动转账 → 管理员手动充值
+└─ 手动转账：显示银行账号 → 用户转账 → 管理员核对后充值
     ↓
-API 自动为用户充值对应积分（数据库事务）
+订单状态更新（pending → paid）
     ↓
-用户收到积分到账通知（页面 toast 提示）
+积分到账（数据库事务）
+    ↓
+用户收到通知（页面 toast 提示）
 ```
+
+**MVP 阶段实现方案：**
+- ✅ 积分系统完整实现（扣减、查询、流水记录）
+- ✅ 订单表结构完整（支持多种支付方式）
+- ✅ 管理员手动充值功能（用于 PayPal 转账后补积分）
+- ⏸️ 自动支付接口暂不实现（保留代码接口，返回"功能开发中"）
+- 📋 后续切换支付方式时，只需实现对应 Provider，无需改动订单和积分逻辑
 
 **管理员后台：**
 - 用户列表（搜索、筛选、积分余额查看）
-- 手动充值/扣减积分（用于退款、补偿、测试）
+- **手动充值/扣减积分（MVP 核心功能，用于 PayPal 转账后补积分、退款、补偿、测试）**
 - 全平台积分交易流水
 - 用量统计（每日 AI 调用次数、积分消耗趋势）
-- 支付订单列表（来自虎皮椒 Webhook 同步）
+- 支付订单列表（记录所有充值请求，含支付方式字段）
 - **用户反馈列表（投诉/Bug/建议）+ 状态处理 + 管理员回复**
 
 ### 模块 F：用户反馈系统
@@ -196,13 +223,18 @@ API 自动为用户充值对应积分（数据库事务）
                    │  │  API Routes  │  │  ← 业务逻辑 + 积分扣减
                    │  └──────┬───────┘  │
                    └─────────┼──────────┘
-          ┌──────────────────┼──────────────────────┐
-          │                  │                      │
- ┌────────▼──────┐  ┌────────▼───────┐  ┌───────────▼──────┐
- │  Supabase     │  │  DeepSeek API  │  │  虎皮椒支付        │
- │  PostgreSQL   │  │  deepseek-chat │  │  Webhook 回调      │
- │  Auth (JWT)   │  │  (流式输出)    │  │  自动充积分        │
- └───────────────┘  └────────────────┘  └──────────────────┘
+          ┌──────────────────┼──────────────────────────────┐
+          │                  │                              │
+ ┌────────▼──────┐  ┌────────▼───────┐  ┌──────────────────▼─────────┐
+ │  Supabase     │  │  DeepSeek API  │  │  支付抽象层（可插拔）        │
+ │  PostgreSQL   │  │  deepseek-chat │  │  ┌──────────────────────┐  │
+ │  Auth (JWT)   │  │  (流式输出)    │  │  │ PaymentProvider 接口  │  │
+ └───────────────┘  └────────────────┘  │  └──────────────────────┘  │
+                                        │  ├─ 虎皮椒（待接入）       │
+                                        │  ├─ 支付宝官方（待接入）   │
+                                        │  ├─ PayPal（手动）        │
+                                        │  └─ 手动转账（管理员充值） │
+                                        └────────────────────────────┘
 ```
 
 ### 技术选型（最终版）
@@ -221,7 +253,7 @@ API 自动为用户充值对应积分（数据库事务）
 | LLM | DeepSeek API (deepseek-chat) | 国内直连，成本极低 |
 | AI SDK | Vercel AI SDK | 流式输出几行代码搞定 |
 | 语音 | **Web Speech API（浏览器原生）** | 零成本，零服务端，iOS/Android 支持 |
-| 支付 | **虎皮椒支付** | 个人可开户，支持微信+支付宝，Webhook 自动到账 |
+| 支付 | **支付抽象层（可插拔设计）** | 支持多种支付方式，MVP 阶段手动充值 + PayPal |
 | 限流 | Upstash Redis | 无服务器 Redis，Vercel Edge 兼容 |
 | PWA | @ducanh2912/next-pwa | 配置简单，可安装到桌面 |
 | 复制 | Clipboard API + ClipboardItem | 支持 HTML/纯文本/Markdown 三种格式 |
@@ -309,19 +341,21 @@ CREATE TABLE credit_transactions (
 );
 
 -- =============================================
--- 支付订单（虎皮椒 Webhook 写入）
+-- 支付订单（支持多种支付方式）
 -- =============================================
 CREATE TABLE payment_orders (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID NOT NULL REFERENCES profiles(id),
   out_trade_no    TEXT UNIQUE NOT NULL,    -- 我方生成的订单号
-  platform_order  TEXT,                   -- 虎皮椒返回的平台订单号
+  platform_order  TEXT,                   -- 第三方平台订单号（如虎皮椒、支付宝）
   package_name    TEXT NOT NULL,          -- '入门包'|'标准包'|'专业包'
   amount_fen      INTEGER NOT NULL,        -- 支付金额（分）
   credits_granted INTEGER NOT NULL,        -- 应充积分数
-  payment_method  TEXT,                   -- 'wxpay'|'alipay'
+  payment_provider TEXT NOT NULL,         -- 'hupijiao'|'alipay_official'|'paypal'|'manual'
+  payment_method  TEXT,                   -- 'wxpay'|'alipay'|'paypal'|'bank_transfer'
   status          TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'failed', 'refunded')),
   paid_at         TIMESTAMPTZ,
+  admin_note      TEXT,                   -- 管理员备注（手动充值时填写）
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -469,11 +503,11 @@ crusher/
 │   │       ├── insights/route.ts       # POST: AI 分析（积分检查+扣减+流式输出）
 │   │       ├── feedbacks/route.ts      # POST: 用户提交反馈; GET: 用户自己的反馈列表
 │   │       ├── payment/
-│   │       │   ├── create/route.ts     # POST: 创建支付订单 → 获取虎皮椒支付链接
-│   │       │   └── webhook/route.ts    # POST: 虎皮椒回调 → 自动充积分
+│   │       │   ├── create/route.ts     # POST: 创建支付订单（MVP 返回"功能开发中"）
+│   │       │   └── webhook/route.ts    # POST: 支付回调接口（预留，支持多 Provider）
 │   │       └── admin/
 │   │           ├── users/route.ts
-│   │           ├── credits/route.ts
+│   │           ├── credits/route.ts    # POST: 管理员手动充值/扣减（MVP 核心功能）
 │   │           └── feedbacks/
 │   │               ├── route.ts        # GET: 管理员查询反馈列表（含筛选/分页）
 │   │               └── [id]/route.ts   # PATCH: 更新状态 + 写入管理员回复
@@ -494,7 +528,14 @@ crusher/
 │   │   │   └── server.ts
 │   │   ├── deepseek.ts                 # DeepSeek API 封装
 │   │   ├── credits.ts                  # 积分计算 + 原子扣减 RPC 调用
-│   │   ├── payment.ts                  # 虎皮椒支付 SDK 封装
+│   │   ├── payment/                    # 支付抽象层（可插拔设计）
+│   │   │   ├── types.ts                # PaymentProvider 接口定义
+│   │   │   ├── providers/
+│   │   │   │   ├── hupijiao.ts         # 虎皮椒实现（待接入）
+│   │   │   │   ├── alipay.ts           # 支付宝官方实现（待接入）
+│   │   │   │   ├── paypal.ts           # PayPal 实现（手动模式）
+│   │   │   │   └── manual.ts           # 手动转账（管理员充值）
+│   │   │   └── index.ts                # Provider 工厂函数
 │   │   ├── copy.ts                     # 三格式复制工具函数
 │   │   ├── rate-limit.ts               # Upstash 限流
 │   │   └── prompts/                    # 所有 System Prompt
@@ -551,7 +592,7 @@ crusher/
 | 风险 | 防护措施 |
 |------|---------|
 | 积分并发超扣 | PostgreSQL 行锁事务（`FOR UPDATE`），100% 安全 |
-| 支付回调伪造 | 验证虎皮椒 HMAC 签名，幂等处理（订单已处理则跳过） |
+| 支付回调伪造 | 验证第三方平台签名（如虎皮椒 HMAC、支付宝 RSA），幂等处理 |
 | 超长输入攻击 | 前后端双重限制 50,000 字，超出返回 400 |
 | 音频上传攻击 | 已移除，Web Speech API 无此风险 |
 | SQL 注入 | 全程 Supabase Client 参数化查询 |
@@ -570,7 +611,7 @@ const securityHeaders = [
     "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
-    "connect-src 'self' https://*.supabase.co https://api.deepseek.com https://api.hupijiao.com",
+    "connect-src 'self' https://*.supabase.co https://api.deepseek.com",
   ].join('; ') },
 ]
 ```
@@ -645,31 +686,151 @@ export async function copyAsMarkdown(markdown: string) {
 }
 ```
 
-### 8.4 虎皮椒支付 Webhook
+### 8.4 支付抽象层设计
 
 ```typescript
-// api/payment/webhook/route.ts
+// lib/payment/types.ts
+export interface PaymentProvider {
+  name: string
+  createOrder(params: CreateOrderParams): Promise<CreateOrderResult>
+  verifyCallback(body: string, signature: string): boolean
+  parseCallback(body: string): CallbackData
+}
+
+export interface CreateOrderParams {
+  userId: string
+  packageName: string
+  amountFen: number
+  creditsGranted: number
+}
+
+export interface CreateOrderResult {
+  orderId: string
+  paymentUrl?: string      // 自动支付时返回
+  instructions?: string    // 手动支付时返回说明
+}
+
+// lib/payment/providers/manual.ts
+export class ManualPaymentProvider implements PaymentProvider {
+  name = 'manual'
+
+  async createOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
+    const orderId = await saveOrder({ ...params, provider: 'manual' })
+    return {
+      orderId,
+      instructions: `请通过以下方式支付：
+        PayPal: PayPal.Me/SoulfulCai
+        金额: ¥${params.amountFen / 100}
+        备注: ${orderId}
+
+        支付完成后请联系管理员充值积分`
+    }
+  }
+
+  verifyCallback() { return true }  // 手动模式无回调
+  parseCallback() { throw new Error('Manual mode has no callback') }
+}
+
+// lib/payment/providers/hupijiao.ts（预留接口）
+export class HupijiaoProvider implements PaymentProvider {
+  name = 'hupijiao'
+
+  async createOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
+    // TODO: 接入虎皮椒 API
+    throw new Error('Hupijiao provider not implemented yet')
+  }
+
+  verifyCallback(body: string, signature: string): boolean {
+    // TODO: 验证虎皮椒签名
+    return false
+  }
+
+  parseCallback(body: string): CallbackData {
+    // TODO: 解析虎皮椒回调
+    throw new Error('Not implemented')
+  }
+}
+
+// lib/payment/index.ts
+export function getPaymentProvider(): PaymentProvider {
+  const provider = process.env.PAYMENT_PROVIDER || 'manual'
+
+  switch (provider) {
+    case 'manual':
+      return new ManualPaymentProvider()
+    case 'hupijiao':
+      return new HupijiaoProvider()
+    case 'alipay':
+      return new AlipayProvider()
+    case 'paypal':
+      return new PayPalProvider()
+    default:
+      return new ManualPaymentProvider()
+  }
+}
+```
+
+### 8.5 支付 API 实现（MVP 版本）
+
+```typescript
+// api/payment/create/route.ts
 export async function POST(req: Request) {
+  const { packageName } = await req.json()
+  const user = await getServerUser()
+
+  const packages = {
+    '入门包': { credits: 100, price: 1000 },
+    '标准包': { credits: 500, price: 4500 },
+    '专业包': { credits: 1200, price: 9600 },
+  }
+
+  const pkg = packages[packageName]
+  if (!pkg) return new Response('Invalid package', { status: 400 })
+
+  // 使用支付抽象层
+  const provider = getPaymentProvider()
+  const result = await provider.createOrder({
+    userId: user.id,
+    packageName,
+    amountFen: pkg.price,
+    creditsGranted: pkg.credits,
+  })
+
+  return Response.json({
+    orderId: result.orderId,
+    paymentUrl: result.paymentUrl,
+    instructions: result.instructions,
+    provider: provider.name,
+  })
+}
+
+// api/payment/webhook/route.ts（预留接口）
+export async function POST(req: Request) {
+  const provider = getPaymentProvider()
   const body = await req.text()
-  // 1. 验证虎皮椒签名（防伪造）
-  const isValid = verifyHupijiaSignature(body, process.env.HUPIJIAO_KEY!)
-  if (!isValid) return new Response('Invalid signature', { status: 403 })
+  const signature = req.headers.get('x-signature') || ''
 
-  const { out_trade_no, trade_status } = parseWebhook(body)
-  if (trade_status !== 'TRADE_SUCCESS') return new Response('ok')
+  // 验证签名
+  if (!provider.verifyCallback(body, signature)) {
+    return new Response('Invalid signature', { status: 403 })
+  }
 
-  // 2. 幂等检查（防重复处理）
-  const order = await getOrderByTradeNo(out_trade_no)
+  // 解析回调数据
+  const { orderId, status } = provider.parseCallback(body)
+  if (status !== 'paid') return new Response('ok')
+
+  // 幂等检查
+  const order = await getOrderById(orderId)
   if (order.status === 'paid') return new Response('ok')
 
-  // 3. 更新订单 + 充积分（数据库事务）
+  // 充值积分（数据库事务）
   await grantCreditsFromPayment(order.user_id, order.credits_granted, order.id)
 
   return new Response('success')
 }
 ```
 
-### 8.5 DeepSeek 流式输出
+### 8.6 DeepSeek 流式输出
 
 ```typescript
 // api/insights/route.ts
@@ -959,7 +1120,7 @@ v1  2026-03-04  初始版本           [查看]
 | **Day 2** | 双端布局 | PC 侧边栏 + 移动端底部导航 + 共享组件库（Card/Button/Badge 等）+ 路由骨架 | PC/移动端布局切换正常 |
 | **Day 3** | 核心 CRUD | 文档输入页（字数/积分实时预览）+ 文档列表 + 文档详情 + 软删除 | 能写/读/列出/删除文档 |
 | **Day 4** | AI 核心 | DeepSeek 流式输出 + 7个内置透镜（从 DB 读 Prompt）+ 积分扣减 + 语音输入（Web Speech API） | 流式 AI 输出正常，积分正确 |
-| **Day 5** | 复制 + 支付 | 三格式复制 + 虎皮椒支付（订单创建 + Webhook 自动充积分）+ 积分余额展示 | 支付流程端到端正常 |
+| **Day 5** | 复制 + 支付架构 | 三格式复制 + 支付抽象层设计 + 充值 UI（暂不可用）+ 积分余额展示 + 管理员手动充值功能 | 复制功能正常，管理员可手动充值 |
 | **Day 6** | 自定义透镜 + 反馈系统 + 公告 | 自定义透镜 CRUD + 反馈提交表单（含四个触发入口）+ 前端公告横幅展示 | 用户可创建透镜，可提交反馈，公告可显示 |
 | **Day 7** | 管理后台 基础 | 用户列表 + 禁用/启用 + 手动积分 + 订单列表 + 用量统计图表 | 管理员核心操作全通 |
 | **Day 8** | 管理后台 进阶 + 安全 | Prompt 版本管理 + 公告管理 + **反馈管理（列表+侧抽屉+状态处理）** + 安全 Headers + Upstash 限流 + PWA 配置 | 管理员可在线更新 Prompt，可处理用户反馈 |
@@ -980,10 +1141,21 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...          # 仅服务端，危险
 # DeepSeek
 DEEPSEEK_API_KEY=sk-...                   # 仅服务端
 
-# 虎皮椒支付
-HUPIJIAO_PID=...                          # 商户 ID
-HUPIJIAO_KEY=...                          # 签名密钥，仅服务端
-HUPIJIAO_NOTIFY_URL=https://你的域名/api/payment/webhook
+# 支付配置（可选，根据实际接入的支付方式配置）
+PAYMENT_PROVIDER=manual                   # 'manual'|'hupijiao'|'alipay'|'paypal'
+
+# 虎皮椒支付（待接入时配置）
+# HUPIJIAO_PID=...                        # 商户 ID
+# HUPIJIAO_KEY=...                        # 签名密钥，仅服务端
+# HUPIJIAO_NOTIFY_URL=https://你的域名/api/payment/webhook
+
+# 支付宝官方（待接入时配置）
+# ALIPAY_APP_ID=...
+# ALIPAY_PRIVATE_KEY=...
+# ALIPAY_PUBLIC_KEY=...
+
+# PayPal 配置
+PAYPAL_RECEIVE_LINK=PayPal.Me/SoulfulCai  # 收款链接
 
 # Upstash Redis（限流）
 UPSTASH_REDIS_REST_URL=https://...
@@ -1004,8 +1176,8 @@ ADMIN_EMAILS=admin@example.com
 □ 积分扣减准确（并发压测：无超扣）
 □ 语音输入在 iOS Safari 和 Android Chrome 均可用
 □ 三格式复制（Markdown/纯文本/富文本）均正常（非HTTPS环境优雅降级）
-□ 虎皮椒支付：创建订单 → 扫码支付 → Webhook → 积分自动到账
-□ 管理员手动充值/扣减积分正常
+□ 充值入口显示正常，点击后提示"功能开发中"并显示 PayPal 收款链接
+□ 管理员手动充值/扣减积分正常（核心功能）
 □ 用户可通过四个入口提交反馈，提交后可在 Profile 查看状态
 □ 管理员可在 /admin/feedbacks 查看、处理反馈，回复内容用户可见
 □ 支付异常行显示"有问题？"入口，点击预填支付反馈表单
@@ -1015,7 +1187,6 @@ ADMIN_EMAILS=admin@example.com
 □ 非管理员无法访问 /admin 路由
 □ Chrome DevTools Network 中无 API Key 出现
 □ 限流生效（快速连续请求返回 429）
-□ 虎皮椒 Webhook 签名校验（伪造请求被拒绝）
 □ 积分不足时 AI 分析被拒绝（返回 402）
 
 PWA 验收：
@@ -1032,7 +1203,7 @@ PWA 验收：
 |------|------|
 | PDF / Word 导出 | 复杂度高，MVP 阶段三格式复制已满足需求 |
 | 透镜市场（分享/评分） | 需要内容审核机制，v2 单独规划 |
-| 官方微信/支付宝商户 | 需营业执照，申请后替换虎皮椒 |
+| 官方微信/支付宝商户 | 需营业执照，申请后通过切换 PAYMENT_PROVIDER 环境变量替换，无需改动业务代码 |
 | 团队协作（文档共享） | 权限模型复杂，v2 规划 |
 | 文档版本历史 | 存储成本较高，v2 规划 |
 
