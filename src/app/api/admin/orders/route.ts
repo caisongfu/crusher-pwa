@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/supabase/server';
-import { createServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { requireAdmin, isAdminAuthError } from '@/lib/admin/auth';
+import { PAGINATION, ORDER_STATUS } from '@/lib/constants';
 
 // 请求参数验证
 const ListOrdersSchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
-  status: z.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
+  page: z.coerce.number().min(1).default(PAGINATION.DEFAULT_PAGE),
+  limit: z.coerce.number().min(1).max(PAGINATION.MAX_LIMIT).default(PAGINATION.DEFAULT_LIMIT),
+  status: z.enum([ORDER_STATUS.PENDING, ORDER_STATUS.PAID, ORDER_STATUS.FAILED, ORDER_STATUS.REFUNDED]).optional(),
   search: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -16,21 +16,10 @@ const ListOrdersSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     // 验证管理员权限
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (isAdminAuthError(auth)) return auth;
 
-    const supabase = await createServerClient();
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const supabase = await (await import('@/lib/supabase/server')).createServerClient();
 
     // 解析和验证请求参数
     const { searchParams } = new URL(req.url);
@@ -78,7 +67,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 格式化响应数据
-    const orders = (data || []).map((order: any) => ({
+    const orders = (data || []).map((order) => ({
       id: order.id,
       user_id: order.user_id,
       out_trade_no: order.out_trade_no,

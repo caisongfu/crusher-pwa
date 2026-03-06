@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import {
 import { toast } from 'sonner';
 import { Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ORDER_STATUS, ORDER_STATUS_LABELS, ORDER_STATUS_BADGE_VARIANTS, PAGINATION, type OrderStatus } from '@/lib/constants';
+import { formatFenToYuan, formatDateToCN } from '@/lib/format';
 
 interface Order {
   id: string;
@@ -24,7 +26,7 @@ interface Order {
   package_name: string;
   amount_fen: number;
   credits_granted: number;
-  status: 'pending' | 'paid' | 'failed' | 'refunded';
+  status: OrderStatus;
   paid_at: string | null;
   created_at: string;
   user: {
@@ -37,13 +39,13 @@ interface Order {
 export function OrderList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(PAGINATION.DEFAULT_PAGE);
   const [loading, setLoading] = useState(false);
 
   // 筛选状态
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebounce(search, 500);
-  const [status, setStatus] = useState<string>('');
+  const [status, setStatus] = useState<OrderStatus | ''>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -53,7 +55,7 @@ export function OrderList() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
+        limit: PAGINATION.DEFAULT_LIMIT.toString(),
       });
 
       if (debouncedSearch) params.append('search', debouncedSearch);
@@ -82,25 +84,17 @@ export function OrderList() {
     loadOrders();
   }, [page, debouncedSearch, status, startDate, endDate]);
 
-  // 格式化金额
-  const formatAmount = (amountFen: number) => {
-    return `¥${(amountFen / 100).toFixed(2)}`;
-  };
-
   // 状态徽章
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { label: '待支付', color: 'default' },
-      paid: { label: '已支付', color: 'default' },
-      failed: { label: '失败', color: 'destructive' },
-      refunded: { label: '已退款', color: 'secondary' },
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig];
-    return <Badge variant={config.color as any}>{config.label}</Badge>;
+  const getStatusBadge = (status: OrderStatus) => {
+    const label = ORDER_STATUS_LABELS[status];
+    const variant = ORDER_STATUS_BADGE_VARIANTS[status];
+    return <Badge variant={variant as any}>{label}</Badge>;
   };
 
-  const totalPages = Math.ceil(total / 20);
+  const totalPages = useMemo(
+    () => Math.ceil(total / PAGINATION.DEFAULT_LIMIT),
+    [total]
+  );
 
   return (
     <div className="space-y-6">
@@ -116,16 +110,16 @@ export function OrderList() {
           />
         </div>
 
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={status} onValueChange={(value) => setStatus(value as OrderStatus | '')}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="全部状态" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">全部状态</SelectItem>
-            <SelectItem value="pending">待支付</SelectItem>
-            <SelectItem value="paid">已支付</SelectItem>
-            <SelectItem value="failed">失败</SelectItem>
-            <SelectItem value="refunded">已退款</SelectItem>
+            <SelectItem value={ORDER_STATUS.PENDING}>{ORDER_STATUS_LABELS[ORDER_STATUS.PENDING]}</SelectItem>
+            <SelectItem value={ORDER_STATUS.PAID}>{ORDER_STATUS_LABELS[ORDER_STATUS.PAID]}</SelectItem>
+            <SelectItem value={ORDER_STATUS.FAILED}>{ORDER_STATUS_LABELS[ORDER_STATUS.FAILED]}</SelectItem>
+            <SelectItem value={ORDER_STATUS.REFUNDED}>{ORDER_STATUS_LABELS[ORDER_STATUS.REFUNDED]}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -191,12 +185,10 @@ export function OrderList() {
                     </div>
                   </TableCell>
                   <TableCell>{order.package_name}</TableCell>
-                  <TableCell>{formatAmount(order.amount_fen)}</TableCell>
+                  <TableCell>{formatFenToYuan(order.amount_fen)}</TableCell>
                   <TableCell>{order.credits_granted}</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell>
-                    {new Date(order.created_at).toLocaleDateString('zh-CN')}
-                  </TableCell>
+                  <TableCell>{formatDateToCN(order.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="outline"

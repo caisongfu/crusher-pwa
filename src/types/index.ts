@@ -165,6 +165,40 @@ export interface Announcement {
   created_at: string
 }
 
+// 订单状态别名（与 PaymentStatus 保持一致）
+export type OrderStatus = PaymentStatus
+
+// =============================================
+// 退款请求
+// =============================================
+export type RefundStatus = 'pending' | 'approved' | 'rejected'
+
+export interface RefundRequest {
+  id: string
+  order_id: string
+  user_id: string
+  reason: string
+  refund_amount: number
+  requested_by: string
+  status: RefundStatus
+  approved_by: string | null
+  approved_at: string | null
+  rejection_reason: string | null
+  created_at: string
+}
+
+// =============================================
+// 每日统计
+// =============================================
+export interface DailyStats {
+  date: string
+  new_users: number
+  orders: number
+  revenue: number
+  credits_consumed: number
+  active_users: number
+}
+
 // =============================================
 // 积分计算（前端实时预览）
 // =============================================

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { TrendingUp, Users, ShoppingCart, Zap } from 'lucide-react';
+import { formatDateToISO, formatRevenue, formatDateToMD } from '@/lib/format';
 
 interface DailyStats {
   date: string;
@@ -27,6 +28,22 @@ interface DailyStats {
   credits_consumed: number;
   active_users: number;
 }
+
+// 格式化日期为 YYYY-MM-DD
+const formatDateToISO = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+// 格式化日期为 MM/DD（用于图表显示）
+const formatDateToMD = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+// 格式化收入（分转元）
+const formatRevenue = (revenue: number): string => {
+  return `¥${(revenue / 100).toFixed(2)}`;
+};
 
 export function StatsCharts() {
   const [stats, setStats] = useState<DailyStats[]>([]);
@@ -69,9 +86,8 @@ export function StatsCharts() {
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 6);
 
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
-    setEndDate(formatDate(today));
-    setStartDate(formatDate(weekAgo));
+    setEndDate(formatDateToISO(today));
+    setStartDate(formatDateToISO(weekAgo));
   }, []);
 
   useEffect(() => {
@@ -80,26 +96,21 @@ export function StatsCharts() {
     }
   }, [startDate, endDate]);
 
-  // 格式化收入（分转元）
-  const formatRevenue = (revenue: number) => `¥${(revenue / 100).toFixed(2)}`;
-
-  // 计算总计
-  const totals = stats.reduce(
-    (acc, stat) => ({
-      newUsers: acc.newUsers + stat.new_users,
-      orders: acc.orders + stat.orders,
-      revenue: acc.revenue + stat.revenue,
-      creditsConsumed: acc.creditsConsumed + stat.credits_consumed,
-      activeUsers: Math.max(acc.activeUsers, stat.active_users),
-    }),
-    { newUsers: 0, orders: 0, revenue: 0, creditsConsumed: 0, activeUsers: 0 }
+  // 计算总计（使用 useMemo 优化）
+  const totals = useMemo(
+    () =>
+      stats.reduce(
+        (acc, stat) => ({
+          newUsers: acc.newUsers + stat.new_users,
+          orders: acc.orders + stat.orders,
+          revenue: acc.revenue + stat.revenue,
+          creditsConsumed: acc.creditsConsumed + stat.credits_consumed,
+          activeUsers: Math.max(acc.activeUsers, stat.active_users),
+        }),
+        { newUsers: 0, orders: 0, revenue: 0, creditsConsumed: 0, activeUsers: 0 }
+      ),
+    [stats]
   );
-
-  // 格式化日期显示
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
-  };
 
   return (
     <div className="space-y-6">
@@ -120,10 +131,7 @@ export function StatsCharts() {
           onChange={(e) => setEndDate(e.target.value)}
           className="w-40"
         />
-        <Button
-          onClick={loadStats}
-          disabled={loading || !startDate || !endDate}
-        >
+        <Button onClick={loadStats} disabled={loading || !startDate || !endDate}>
           {loading ? '加载中...' : '刷新'}
         </Button>
       </div>
@@ -163,9 +171,7 @@ export function StatsCharts() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {formatRevenue(totals.revenue)}
-              </div>
+              <div className="text-2xl font-bold">{formatRevenue(totals.revenue)}</div>
               <p className="text-xs text-muted-foreground">
                 总收入 {formatRevenue(totals.revenue)}
               </p>
@@ -178,9 +184,7 @@ export function StatsCharts() {
               <Zap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {totals.creditsConsumed}
-              </div>
+              <div className="text-2xl font-bold">{totals.creditsConsumed}</div>
               <p className="text-xs text-muted-foreground">
                 期间共消耗 {totals.creditsConsumed} 积分
               </p>
@@ -199,7 +203,7 @@ export function StatsCharts() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={stats}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={formatDate} />
+                <XAxis dataKey="date" tickFormatter={formatDateToMD} />
                 <YAxis tickFormatter={(value) => `¥${(value / 100).toFixed(0)}`} />
                 <Tooltip
                   labelFormatter={(label) => new Date(label).toLocaleDateString('zh-CN')}
@@ -229,7 +233,7 @@ export function StatsCharts() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={stats}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={formatDate} />
+                <XAxis dataKey="date" tickFormatter={formatDateToMD} />
                 <YAxis />
                 <Tooltip
                   labelFormatter={(label) => new Date(label).toLocaleDateString('zh-CN')}
@@ -253,7 +257,7 @@ export function StatsCharts() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={stats}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={formatDate} />
+                <XAxis dataKey="date" tickFormatter={formatDateToMD} />
                 <YAxis />
                 <Tooltip
                   labelFormatter={(label) => new Date(label).toLocaleDateString('zh-CN')}
