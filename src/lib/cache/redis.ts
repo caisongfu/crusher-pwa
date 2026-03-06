@@ -4,23 +4,24 @@
  * 基于 Upstash Redis 实现缓存功能，用于优化数据查询性能
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from "@upstash/redis";
 
 // 从环境变量获取 Redis 配置
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 if (!redisUrl || !redisToken) {
-  console.warn('⚠️  Upstash Redis 未配置，缓存功能将被禁用');
+  console.warn("⚠️  Upstash Redis 未配置，缓存功能将被禁用");
 }
 
 // 创建 Redis 客户端
-const redis = redisUrl && redisToken
-  ? new Redis({
-      url: redisUrl,
-      token: redisToken,
-    })
-  : null;
+const redis =
+  redisUrl && redisToken
+    ? new Redis({
+        url: redisUrl,
+        token: redisToken,
+      })
+    : null;
 
 /**
  * 缓存选项
@@ -40,7 +41,7 @@ export interface CacheOptions {
  * @returns 完整的缓存键
  */
 function getCacheKey(key: string, namespace?: string): string {
-  const ns = namespace || 'crusher';
+  const ns = namespace || "crusher";
   return `${ns}:${key}`;
 }
 
@@ -69,7 +70,7 @@ export async function get<T = any>(
 
     return JSON.parse(value);
   } catch (error) {
-    console.error('Redis get error:', error);
+    console.error("Redis get error:", error);
     return null;
   }
 }
@@ -100,7 +101,7 @@ export async function set(
       await redis.set(cacheKey, serialized);
     }
   } catch (error) {
-    console.error('Redis set error:', error);
+    console.error("Redis set error:", error);
   }
 }
 
@@ -119,7 +120,7 @@ export async function del(key: string, options?: CacheOptions): Promise<void> {
     const cacheKey = getCacheKey(key, options?.namespace);
     await redis.del(cacheKey);
   } catch (error) {
-    console.error('Redis del error:', error);
+    console.error("Redis del error:", error);
   }
 }
 
@@ -145,7 +146,7 @@ export async function delPattern(
       await redis.del(...keys);
     }
   } catch (error) {
-    console.error('Redis delPattern error:', error);
+    console.error("Redis delPattern error:", error);
   }
 }
 
@@ -215,9 +216,9 @@ export class CacheManager {
 /**
  * 预定义的缓存管理器
  */
-export const statsCache = new CacheManager('stats');
-export const userCache = new CacheManager('user');
-export const orderCache = new CacheManager('order');
+export const statsCache = new CacheManager("stats");
+export const userCache = new CacheManager("user");
+export const orderCache = new CacheManager("order");
 
 export default {
   get,

@@ -17,7 +17,7 @@ const COMMON_EMOJIS = ['🔧', '📊', '✍️', '🎯', '📌', '💡', '🔍',
 
 const schema = z.object({
   name: z.string().min(1, '名称必填').max(50, '最多50字'),
-  icon: z.string().default('🔧'),
+  icon: z.string().min(1, '图标必填'),
   description: z.string().max(200, '最多200字').optional(),
   system_prompt: z.string().min(10, '系统提示词至少10字').max(5000, '最多5000字'),
 })

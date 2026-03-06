@@ -1,23 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import Script from 'next/script';
+import Script from "next/script";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export function GoogleAnalytics() {
-  useEffect(() => {
-    // 初始化 Google Analytics
-    if (GA_ID) {
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        window.dataLayer.push(arguments);
-      }
-      gtag('js', new Date());
-      gtag('config', GA_ID);
-    }
-  }, []);
-
   if (!GA_ID) return null;
 
   return (

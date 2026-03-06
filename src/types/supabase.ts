@@ -9,6 +9,38 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      admin_alerts: {
+        Row: {
+          id: string
+          type: 'error' | 'warning' | 'info'
+          level: 'P0' | 'P1' | 'P2' | 'P3'
+          message: string
+          details: Json
+          user_id: string | null
+          context: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type: 'error' | 'warning' | 'info'
+          level: 'P0' | 'P1' | 'P2' | 'P3'
+          message: string
+          details?: Json
+          user_id?: string | null
+          context?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          type?: 'error' | 'warning' | 'info'
+          level?: 'P0' | 'P1' | 'P2' | 'P3'
+          message?: string
+          details?: Json
+          user_id?: string | null
+          context?: Json
+          created_at?: string
+        }
+      }
       profiles: {
         Row: {
           id: string

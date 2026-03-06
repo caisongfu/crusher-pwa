@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/supabase/server';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import type { UserRole } from '@/types';
 
 /**
  * 验证用户是否为管理员
@@ -17,7 +18,7 @@ export async function requireAdmin() {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .single<{ role: UserRole } | null>();
 
   if (!profile || profile.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -31,6 +32,6 @@ export async function requireAdmin() {
  */
 export function isAdminAuthError(
   result: Awaited<ReturnType<typeof requireAdmin>>
-): result is NextResponse {
+): result is NextResponse<any> {
   return result instanceof NextResponse;
 }
