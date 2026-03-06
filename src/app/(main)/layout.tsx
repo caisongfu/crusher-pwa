@@ -4,6 +4,8 @@ import { TopBar } from '@/components/layout/top-bar'
 import { Sidebar } from '@/components/layout/sidebar'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { FeedbackButton } from '@/components/feedback-button'
+import { AnnouncementBanner } from '@/components/announcement-banner'
+import type { Announcement } from '@/types'
 
 export default async function MainLayout({
   children,
@@ -22,6 +24,15 @@ export default async function MainLayout({
     redirect('/login')
   }
 
+  // 查询公告
+  const supabase = await createClient()
+  const { data: announcements } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('is_active', true)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    .order('created_at', { ascending: false })
+
   return (
     <div className="min-h-screen bg-zinc-50">
       {/* TopBar */}
@@ -32,6 +43,7 @@ export default async function MainLayout({
 
       {/* Main Content */}
       <main className="flex-1 md:ml-60 pt-14 pb-16 md:pb-0">
+        <AnnouncementBanner announcements={announcements ?? []} />
         {children}
       </main>
 
