@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { toast } from 'sonner'
@@ -46,11 +47,11 @@ export function TopBar({ profile }: TopBarProps) {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 h-14 md:h-14 border-b bg-white">
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 md:h-14 border-b bg-white">
       <div className="flex items-center justify-between h-full px-4 md:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-          <span className="text-2xl">🪨</span>
+          <Image src="/logo.webp" alt="Crusher" width={32} height={32} />
           <span className="hidden sm:inline">Crusher</span>
         </Link>
 

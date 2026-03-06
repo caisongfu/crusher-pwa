@@ -19,7 +19,7 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden md:flex md:w-60 md:flex-col fixed inset-y-0 z-50 border-r bg-white pt-14">
+    <aside className="hidden md:flex md:w-60 md:flex-col fixed inset-y-0 z-30 border-r bg-white pt-14">
       <nav className="flex-1 flex flex-col gap-1 p-4">
         {navItems.map((item) => {
           const Icon = item.icon
