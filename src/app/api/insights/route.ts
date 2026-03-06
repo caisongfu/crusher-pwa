@@ -1,11 +1,11 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { streamText } from 'ai'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/supabase'
 import { deepseekModel } from '@/lib/deepseek'
-import { ratelimit } from '@/lib/rate-limit'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { deductCredits } from '@/lib/credits'
 import { resolvePrompt } from '@/lib/prompts'
 import { calculateCreditCost } from '@/types'
@@ -27,10 +27,30 @@ export async function POST(request: NextRequest) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  // 限流检查
-  const { success: rateLimitOk } = await ratelimit.limit(user.id)
-  if (!rateLimitOk) {
-    return new Response('Too Many Requests', { status: 429 })
+  const supabase = await createClient()
+
+  // 获取用户积分以确定限流额度
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('credits')
+    .eq('id', user.id)
+    .single()
+
+  if (profileError || !profile) {
+    return new Response('用户不存在', { status: 404 })
+  }
+
+  // 动态限流检查
+  const rateLimitResult = await checkRateLimit(user.id, profile.credits)
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      {
+        error: rateLimitResult.message,
+        remaining: rateLimitResult.remaining,
+        resetTime: rateLimitResult.resetTime,
+      },
+      { status: 429 }
+    )
   }
 
   // 参数校验
@@ -42,7 +62,6 @@ export async function POST(request: NextRequest) {
 
   const { documentId, lensType, customLensId } = parsed.data
 
-  const supabase = await createClient()
 
   // 获取文档并验证归属
   const { data: doc, error: docError } = await supabase
