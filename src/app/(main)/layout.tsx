@@ -3,6 +3,7 @@ import { getCurrentUser, getCurrentProfile, createClient } from '@/lib/supabase/
 import { TopBar } from '@/components/layout/top-bar'
 import { Sidebar } from '@/components/layout/sidebar'
 import { BottomNav } from '@/components/layout/bottom-nav'
+import { FeedbackButton } from '@/components/feedback-button'
 
 export default async function MainLayout({
   children,
@@ -36,6 +37,9 @@ export default async function MainLayout({
 
       {/* BottomNav (Mobile only) */}
       <BottomNav />
+
+      {/* Feedback Button (Floating) */}
+      <FeedbackButton />
     </div>
   )
 }
