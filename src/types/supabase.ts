@@ -15,6 +15,7 @@ export interface Database {
           username: string | null
           role: 'user' | 'admin'
           credits: number
+          disable_type: 'normal' | 'login_disabled' | 'usage_disabled'
           created_at: string
           updated_at: string
         }
@@ -23,6 +24,7 @@ export interface Database {
           username?: string | null
           role?: 'user' | 'admin'
           credits?: number
+          disable_type?: 'normal' | 'login_disabled' | 'usage_disabled'
           created_at?: string
           updated_at?: string
         }
@@ -31,6 +33,7 @@ export interface Database {
           username?: string | null
           role?: 'user' | 'admin'
           credits?: number
+          disable_type?: 'normal' | 'login_disabled' | 'usage_disabled'
           created_at?: string
           updated_at?: string
         }
@@ -342,6 +345,152 @@ export interface Database {
           created_at?: string
         }
       }
+      pending_credit_transactions: {
+        Row: {
+          id: string
+          user_id: string
+          amount: number
+          type: 'manual_grant' | 'admin_deduct'
+          description: string
+          requested_by: string
+          status: 'pending' | 'approved' | 'rejected'
+          approved_by: string | null
+          approved_at: string | null
+          rejection_reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          amount: number
+          type: 'manual_grant' | 'admin_deduct'
+          description: string
+          requested_by: string
+          status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          amount?: number
+          type?: 'manual_grant' | 'admin_deduct'
+          description?: string
+          requested_by?: string
+          status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+        }
+      }
+      credit_operations_audit: {
+        Row: {
+          id: string
+          operation_type: 'grant' | 'deduct' | 'approve' | 'reject'
+          user_id: string
+          amount: number | null
+          balance_before: number | null
+          balance_after: number | null
+          operator_id: string
+          operation_time: string
+          ip_address: string | null
+          user_agent: string | null
+          details: Record<string, any>
+        }
+        Insert: {
+          id?: string
+          operation_type: 'grant' | 'deduct' | 'approve' | 'reject'
+          user_id: string
+          amount?: number | null
+          balance_before?: number | null
+          balance_after?: number | null
+          operator_id: string
+          operation_time?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          details?: Record<string, any>
+        }
+        Update: never
+      }
+      refund_requests: {
+        Row: {
+          id: string
+          order_id: string
+          user_id: string
+          reason: string
+          status: 'pending' | 'approved' | 'rejected'
+          approved_by: string | null
+          approved_at: string | null
+          rejection_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          user_id: string
+          reason: string
+          status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          user_id?: string
+          reason?: string
+          status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      daily_stats: {
+        Row: {
+          id: string
+          date: string
+          total_users: number
+          active_users: number
+          total_insights: number
+          total_credits_consumed: number
+          total_revenue_fen: number
+          lens_distribution: Record<string, number>
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          date: string
+          total_users?: number
+          active_users?: number
+          total_insights?: number
+          total_credits_consumed?: number
+          total_revenue_fen?: number
+          lens_distribution?: Record<string, number>
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          date?: string
+          total_users?: number
+          active_users?: number
+          total_insights?: number
+          total_credits_consumed?: number
+          total_revenue_fen?: number
+          lens_distribution?: Record<string, number>
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -353,6 +502,23 @@ export interface Database {
           p_related_insight_id?: string | null
         }
         Returns: Json
+      }
+      get_today_stats: {
+        Args: Record<string, never>
+        Returns: {
+          date: string
+          total_users: number
+          active_users: number
+          total_insights: number
+          total_credits_consumed: number
+          lens_distribution: Record<string, number>
+        }
+      }
+      update_daily_stats: {
+        Args: {
+          p_date: string
+        }
+        Returns: void
       }
     }
     Enums: Record<string, never>
