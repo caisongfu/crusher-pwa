@@ -54,7 +54,7 @@ export function UserList({ onSelectUser }: UserListProps) {
       });
 
       if (debouncedSearch) params.append('search', debouncedSearch);
-      if (status) params.append('status', status);
+      if (status && status !== 'all') params.append('status', status);
       if (creditsMin) params.append('creditsMin', creditsMin);
       if (creditsMax) params.append('creditsMax', creditsMax);
 
@@ -130,7 +130,7 @@ export function UserList({ onSelectUser }: UserListProps) {
             <SelectValue placeholder="全部状态" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">全部状态</SelectItem>
+            <SelectItem value="all">全部状态</SelectItem>
             <SelectItem value="normal">正常</SelectItem>
             <SelectItem value="login_disabled">禁止登录</SelectItem>
             <SelectItem value="usage_disabled">禁止使用</SelectItem>
