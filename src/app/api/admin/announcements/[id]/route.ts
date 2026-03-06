@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
 // 更新公告
@@ -14,7 +14,7 @@ const UpdateAnnouncementSchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证管理员权限
@@ -23,12 +23,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .single() as any
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -37,6 +37,9 @@ export async function PATCH(
     // 解析和验证请求参数
     const body = await req.json()
     const validatedData = UpdateAnnouncementSchema.parse(body)
+
+    // 获取路由参数
+    const { id } = await params
 
     // 构建更新数据
     const updateData: any = {}
@@ -49,12 +52,12 @@ export async function PATCH(
     if (validatedData.isActive !== undefined) updateData.is_active = validatedData.isActive
 
     // 更新公告
-    const { data: announcement, error } = await supabase
+    const { data: announcement, error } = await (supabase as any)
       .from('announcements')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
-      .single()
+      .single() as any
 
     if (error || !announcement) {
       console.error('更新公告失败:', error)
@@ -75,7 +78,7 @@ export async function PATCH(
 // 删除公告
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证管理员权限
@@ -84,22 +87,25 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .single() as any
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // 获取路由参数
+    const { id } = await params
+
     // 删除公告
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('announcements')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (error) {
       console.error('删除公告失败:', error)

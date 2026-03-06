@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const supabase = await createClient();
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -34,7 +34,7 @@ export async function GET(
     const { id } = await params;
 
     // 查询用户详情
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('profiles')
       .select('*')
       .eq('id', id)
@@ -63,7 +63,7 @@ export async function PUT(
     }
 
     const supabase = await createClient();
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -81,7 +81,7 @@ export async function PUT(
     const { id } = await params;
 
     // 更新用户状态
-    const { data: updatedUser, error } = await supabase
+    const { data: updatedUser, error } = await (supabase as any)
       .from('profiles')
       .update({
         disable_type: validatedData.disable_type,

@@ -26,7 +26,7 @@ export async function POST(
     }
 
     const supabase = await createClient();
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -55,7 +55,7 @@ export async function POST(
     const { id } = await params;
 
     // 查询退款请求
-    const { data: refundRequest, error: queryError } = await supabase
+    const { data: refundRequest, error: queryError } = await (supabase as any)
       .from('refund_requests')
       .select(`
         *,
@@ -81,7 +81,7 @@ export async function POST(
     }
 
     // 查询订单信息
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await (supabase as any)
       .from('payment_orders')
       .select('*')
       .eq('id', refundRequest.order_id)
@@ -97,7 +97,7 @@ export async function POST(
     // 如果批准退款
     if (validatedData.action === 'approve') {
       // 获取用户当前积分
-      const { data: currentProfile } = await supabase
+      const { data: currentProfile } = await (supabase as any)
         .from('profiles')
         .select('credits')
         .eq('id', refundRequest.user_id)
@@ -113,7 +113,7 @@ export async function POST(
       const newBalance = currentProfile.credits + refundRequest.refund_amount;
 
       // 更新用户积分
-      const { error: updateCreditsError } = await supabase
+      const { error: updateCreditsError } = await (supabase as any)
         .from('profiles')
         .update({ credits: newBalance, updated_at: new Date().toISOString() })
         .eq('id', refundRequest.user_id);
@@ -127,7 +127,7 @@ export async function POST(
       }
 
       // 记录到积分流水（type: refund）
-      await supabase.from('credit_transactions').insert({
+      await (supabase as any).from('credit_transactions').insert({
         user_id: refundRequest.user_id,
         amount: refundRequest.refund_amount,
         balance_after: newBalance,
@@ -138,14 +138,14 @@ export async function POST(
       });
 
       // 更新订单状态为已退款
-      await supabase
+      await (supabase as any)
         .from('payment_orders')
         .update({ status: 'refunded', updated_at: new Date().toISOString() })
         .eq('id', refundRequest.order_id);
     }
 
     // 更新退款请求状态
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('refund_requests')
       .update({
         status: validatedData.action === 'approve' ? 'approved' : 'rejected',

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     // 获取今日反馈数量
     const today = new Date().toISOString().split('T')[0]
-    const { data: todayFeedbacks, error: todayError } = await supabase
+    const { data: todayFeedbacks, error: todayError } = await (supabase as any)
       .from('feedbacks')
       .select('*')
       .gte('created_at', `${today}T00:00:00.000Z`)
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 按状态统计
-    const { data: statsByStatus, error: statusError } = await supabase
+    const { data: statsByStatus, error: statusError } = await (supabase as any)
       .from('feedbacks')
       .select('status')
       .order('status')
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 按类型统计
-    const { data: statsByType, error: typeError } = await supabase
+    const { data: statsByType, error: typeError } = await (supabase as any)
       .from('feedbacks')
       .select('type')
       .order('type')
@@ -58,14 +58,14 @@ export async function GET(req: NextRequest) {
 
     // 计算状态分布
     const statusCountMap = new Map()
-    statsByStatus?.forEach((item) => {
+    statsByStatus?.forEach((item: any) => {
       const count = statusCountMap.get(item.status) || 0
       statusCountMap.set(item.status, count + 1)
     })
 
     // 计算类型分布
     const typeCountMap = new Map()
-    statsByType?.forEach((item) => {
+    statsByType?.forEach((item: any) => {
       const count = typeCountMap.get(item.type) || 0
       typeCountMap.set(item.type, count + 1)
     })

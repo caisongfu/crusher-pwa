@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { streamText } from 'ai'
-import { deepseek } from '@ai-sdk/deepseek'
+import { deepseekModel } from '@/lib/deepseek'
 import { z } from 'zod'
 
 // 请求参数验证
@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     // 调用 DeepSeek API 测试 Prompt
     const result = streamText({
-      model: deepseek('deepseek-chat'),
+      model: deepseekModel as any,
       system: validatedData.systemPrompt,
       prompt: `请分析以下内容：\n\n${validatedData.testInput}`,
       maxTokens: 1000,

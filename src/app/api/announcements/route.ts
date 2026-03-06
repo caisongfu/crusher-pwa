@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 
 // 获取活跃公告（公开端点，无需认证）
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createServerClient()
+    const supabase = await createClient()
 
     // 查询活跃的公告
     const { data: announcements, error } = await supabase

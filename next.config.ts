@@ -51,45 +51,7 @@ const nextConfig: NextConfig = {
 const withPWAConfig = withPWA({
   dest: 'public',
   register: true,
-  skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.+\.(png|jpg|jpeg|svg|gif|webp|ico)$/i,
-      handler: 'CacheFirst',
-      options: {
-        cacheName: 'images',
-        expiration: {
-          maxEntries: 64,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 天
-        },
-      },
-    },
-    {
-      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'supabase',
-        expiration: {
-          maxEntries: 32,
-          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 天
-        },
-        networkTimeoutSeconds: 10,
-      },
-    },
-    {
-      urlPattern: /^https:\/\/.*\.vercel\.app\/.*/i,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'app',
-        expiration: {
-          maxEntries: 16,
-          maxAgeSeconds: 1 * 24 * 60 * 60, // 1 天
-        },
-        networkTimeoutSeconds: 10,
-      },
-    },
-  ],
 });
 
 export default withPWAConfig(nextConfig);

@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createServerClient();
-    const { data: profile } = await supabase
+    const supabase = await createClient();
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 查询待审批操作
-    const { data: pendingTransaction, error: queryError } = await supabase
+    const { data: pendingTransaction, error: queryError } = await (supabase as any)
       .from('pending_credit_transactions')
       .select('*')
       .eq('id', validatedData.transactionId)
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     // 开始事务
     if (validatedData.action === 'approve') {
       // 获取当前积分余额
-      const { data: currentProfile } = await supabase
+      const { data: currentProfile } = await (supabase as any)
         .from('profiles')
         .select('credits')
         .eq('id', pendingTransaction.user_id)
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       const newBalance = currentProfile.credits + pendingTransaction.amount;
 
       // 更新用户积分
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('profiles')
         .update({ credits: newBalance, updated_at: new Date().toISOString() })
         .eq('id', pendingTransaction.user_id);
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       }
 
       // 记录到积分流水
-      await supabase.from('credit_transactions').insert({
+      await (supabase as any).from('credit_transactions').insert({
         user_id: pendingTransaction.user_id,
         amount: pendingTransaction.amount,
         balance_after: newBalance,
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 更新待审批操作状态
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('pending_credit_transactions')
       .update({
         status: validatedData.action === 'approve' ? 'approved' : 'rejected',
@@ -149,8 +149,8 @@ async function sendCreditNotification(
   description: string
 ) {
   try {
-    const supabase = await createServerClient();
-    const { data: profile } = await supabase
+    const supabase = await createClient();
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('email')
       .eq('id', userId)

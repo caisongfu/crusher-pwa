@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = await createServerClient();
-    const { data: profile } = await supabase
+    const supabase = await createClient();
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const validatedData = CreateRefundRequestSchema.parse(body);
 
     // 查询订单信息
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await (supabase as any)
       .from('payment_orders')
       .select('*')
       .eq('id', validatedData.orderId)
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 检查是否有正在处理的退款请求
-    const { data: existingRequest } = await supabase
+    const { data: existingRequest } = await (supabase as any)
       .from('refund_requests')
       .select('*')
       .eq('order_id', validatedData.orderId)
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 创建退款请求
-    const { data: refundRequest, error } = await supabase
+    const { data: refundRequest, error } = await (supabase as any)
       .from('refund_requests')
       .insert({
         order_id: validatedData.orderId,
@@ -158,8 +158,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const supabase = await createServerClient();
-    const { data: profile } = await supabase
+    const supabase = await createClient();
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 获取总数
-    const { count, error: countError } = await query.select('*', { count: 'exact', head: true });
+    const { count, error: countError } = await query.select("*", { count: "exact" });
 
     if (countError) {
       console.error('查询退款请求总数失败:', countError);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
 // 获取公告列表
@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 查询公告列表
-    const { data: announcements, error } = await supabase
+    const { data: announcements, error } = await (supabase as any)
       .from('announcements')
       .select('*')
       .order('created_at', { ascending: false })
@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     const validatedData = CreateAnnouncementSchema.parse(body)
 
     // 创建公告
-    const { data: announcement, error } = await supabase
+    const { data: announcement, error } = await (supabase as any)
       .from('announcements')
       .insert({
         title: validatedData.title,

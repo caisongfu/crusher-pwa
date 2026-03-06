@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
 // 请求参数验证
@@ -24,12 +24,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .single() as any
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const params = GetPromptsSchema.parse(Object.fromEntries(searchParams))
 
     // 查询 Prompt 版本列表
-    const { data: versions, error } = await supabase
+    const { data: versions, error } = await (supabase as any)
       .from('system_prompts')
       .select('*')
       .eq('lens_type', params.lensType)
@@ -52,12 +52,12 @@ export async function GET(req: NextRequest) {
     }
 
     // 查询当前激活版本
-    const { data: activeVersion } = await supabase
+    const { data: activeVersion } = await (supabase as any)
       .from('system_prompts')
       .select('version')
       .eq('lens_type', params.lensType)
       .eq('is_active', true)
-      .single()
+      .single() as any
 
     return NextResponse.json({
       versions: versions || [],
@@ -92,12 +92,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .single() as any
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     const validatedData = CreatePromptSchema.parse(body)
 
     // 生成新版本号
-    const { data: existingVersions } = await supabase
+    const { data: existingVersions } = await (supabase as any)
       .from('system_prompts')
       .select('version')
       .eq('lens_type', validatedData.lensType)
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     const newVersion = `v${versionCount + 1}`
 
     // 创建新 Prompt 版本（默认不激活）
-    const { data: newVersion, error } = await supabase
+    const { data: createdPrompt, error } = await (supabase as any)
       .from('system_prompts')
       .insert({
         lens_type: validatedData.lensType,
@@ -128,16 +128,16 @@ export async function POST(req: NextRequest) {
         created_by: user.id,
       })
       .select()
-      .single()
+      .single() as any
 
-    if (error || !newVersion) {
+    if (error || !createdPrompt) {
       console.error('创建 Prompt 版本失败:', error)
       return NextResponse.json({ error: '创建失败' }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
-      version: newVersion,
+      version: createdPrompt,
       message: '新版本已创建，请手动激活',
     })
   } catch (error) {

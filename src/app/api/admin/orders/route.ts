@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const auth = await requireAdmin();
     if (isAdminAuthError(auth)) return auth;
 
-    const supabase = await (await import('@/lib/supabase/server')).createServerClient();
+    const supabase = await (await import('@/lib/supabase/server')).createClient();
 
     // 解析和验证请求参数
     const { searchParams } = new URL(req.url);
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 格式化响应数据
-    const orders = (data || []).map((order) => ({
+    const orders = (data || []).map((order: any) => ({
       id: order.id,
       user_id: order.user_id,
       out_trade_no: order.out_trade_no,

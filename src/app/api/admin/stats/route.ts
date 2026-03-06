@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       const todayStats = await statsCache.cached(
         cacheKey,
         async () => {
-          const { data, error: statsError } = await supabase
+          const { data, error: statsError } = await (supabase as any)
             .rpc('get_today_stats');
 
           if (statsError) {
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     const stats = await statsCache.cached(
       cacheKey,
       async () => {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('daily_stats')
           .select('*')
           .gte('date', startDate)

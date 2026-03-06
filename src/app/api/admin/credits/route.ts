@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createServerClient();
-    const { data: profile } = await supabase
+    const supabase = await createClient();
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const validatedData = CreateCreditOperationSchema.parse(body);
 
     // 检查用户是否存在
-    const { data: targetUser } = await supabase
+    const { data: targetUser } = await (supabase as any)
       .from('profiles')
       .select('id')
       .eq('id', validatedData.userId)
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 创建待审批积分操作
-    const { data: pendingTransaction, error } = await supabase
+    const { data: pendingTransaction, error } = await (supabase as any)
       .from('pending_credit_transactions')
       .insert({
         user_id: validatedData.userId,

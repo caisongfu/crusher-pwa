@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 
 // 激活 Prompt 版本
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证管理员权限
@@ -14,41 +14,44 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .single() as any
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // 获取路由参数
+    const { id } = await params
+
     // 查询要激活的版本
-    const { data: targetVersion, error: queryError } = await supabase
+    const { data: targetVersion, error: queryError } = await (supabase as any)
       .from('system_prompts')
       .select('*')
-      .eq('id', params.id)
-      .single()
+      .eq('id', id)
+      .single() as any
 
     if (queryError || !targetVersion) {
       return NextResponse.json({ error: '版本不存在' }, { status: 404 })
     }
 
     // 取消该透镜类型的所有其他版本的激活状态
-    await supabase
+    await (supabase as any)
       .from('system_prompts')
       .update({ is_active: false })
       .eq('lens_type', targetVersion.lens_type)
 
     // 激活目标版本
-    const { data: updatedVersion, error: updateError } = await supabase
+    const { data: updatedVersion, error: updateError } = await (supabase as any)
       .from('system_prompts')
       .update({ is_active: true })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
-      .single()
+      .single() as any
 
     if (updateError || !updatedVersion) {
       console.error('激活 Prompt 版本失败:', updateError)
@@ -69,7 +72,7 @@ export async function PATCH(
 // 删除 Prompt 版本
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证管理员权限
@@ -78,23 +81,26 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
-    const { data: profile } = await supabase
+    const supabase = await createClient()
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .single() as any
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // 获取路由参数
+    const { id } = await params
+
     // 查询要删除的版本
-    const { data: targetVersion, error: queryError } = await supabase
+    const { data: targetVersion, error: queryError } = await (supabase as any)
       .from('system_prompts')
       .select('*')
-      .eq('id', params.id)
-      .single()
+      .eq('id', id)
+      .single() as any
 
     if (queryError || !targetVersion) {
       return NextResponse.json({ error: '版本不存在' }, { status: 404 })
@@ -109,10 +115,10 @@ export async function DELETE(
     }
 
     // 删除版本
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await (supabase as any)
       .from('system_prompts')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (deleteError) {
       console.error('删除 Prompt 版本失败:', deleteError)

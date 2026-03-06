@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createServerClient();
-    const { data: profile } = await supabase
+    const supabase = await createClient();
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 查询积分流水
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('credit_transactions')
       .select('*')
       .eq('user_id', userId)
