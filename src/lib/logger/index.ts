@@ -212,8 +212,8 @@ export class Logger {
     warn(this.formatMessage(message), context);
   }
 
-  error(message: string, error?: Error | unknown, context?: LogContext): void {
-    error(this.formatMessage(message), error, context);
+  error(message: string, err?: Error | unknown, context?: LogContext): void {
+    error(this.formatMessage(message), err, context);
   }
 }
 

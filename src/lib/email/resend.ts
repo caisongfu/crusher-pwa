@@ -40,19 +40,25 @@ export async function sendEmail(options: SendEmailOptions) {
   }
 
   try {
-    const { to, subject, html, text, from, replyTo } = options;
+    const { to, subject, html, text, from } = options;
 
     // 默认发件人
     const defaultFrom = process.env.RESEND_FROM_EMAIL || 'noreply@yourdomain.com';
 
-    const result = await resend.emails.send({
+    const emailData: any = {
       from: from || defaultFrom,
       to: Array.isArray(to) ? to : [to],
       subject,
       html: html || undefined,
       text: text || undefined,
-      reply_to: replyTo || undefined,
-    });
+    };
+
+    // 只在有值时添加 replyTo
+    if (options.replyTo) {
+      emailData.reply_to = options.replyTo;
+    }
+
+    const result = await resend.emails.send(emailData);
 
     console.log('✅ 邮件发送成功:', result.data?.id);
 

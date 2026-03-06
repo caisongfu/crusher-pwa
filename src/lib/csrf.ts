@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 
-export function getCSRFToken(): string {
-  const cookieStore = cookies()
+export async function getCSRFToken(): Promise<string> {
+  const cookieStore = await cookies()
   const token = cookieStore.get('next-auth.csrf-token')
   return token?.value || ''
 }
@@ -9,7 +9,7 @@ export function getCSRFToken(): string {
 export async function verifyCSRFToken(
   requestToken: string
 ): Promise<boolean> {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const cookieToken = cookieStore.get('next-auth.csrf-token')
 
   if (!cookieToken) {

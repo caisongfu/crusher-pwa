@@ -46,7 +46,7 @@ export async function checkGeneralRateLimit(
 ) {
   const ratelimit = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(limit, window),
+    limiter: Ratelimit.slidingWindow(limit, window as any),
     analytics: true,
     prefix: `crusher:general:${identifier}`,
   })
