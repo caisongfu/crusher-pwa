@@ -1,8 +1,8 @@
-import { createOpenAI } from '@ai-sdk/openai'
+import OpenAI from 'openai'
 
-export const deepseek = createOpenAI({
+export const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY!,
-  baseURL: 'https://api.deepseek.com/v1',
+  baseURL: 'https://api.deepseek.com',
 })
 
-export const deepseekModel = deepseek('deepseek-reasoner')
+export const DEEPSEEK_MODEL = 'deepseek-reasoner'

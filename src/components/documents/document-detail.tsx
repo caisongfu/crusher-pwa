@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useCompletion } from "ai/react";
 import { toast } from "sonner";
 import type { Document, Insight, LensType } from "@/types";
-import { useAuthStore } from "@/store";
 import { LensSelector } from "@/components/insights/lens-selector";
 import { InsightResult } from "@/components/insights/insight-result";
 
@@ -13,20 +11,41 @@ interface DocumentDetailProps {
 }
 
 export function DocumentDetail({ document }: DocumentDetailProps) {
-  const { updateCredits } = useAuthStore();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [currentLensType, setCurrentLensType] = useState<string>("");
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [completion, setCompletion] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { completion, isLoading, complete } = useCompletion({
-    api: "/api/insights",
-    onFinish: (_prompt, completion) => {
-      // 刷新历史 insights
+  const complete = async (
+    _prompt: string,
+    options: { body: { documentId: string; lensType: string } }
+  ) => {
+    setIsLoading(true);
+    setCompletion("");
+    try {
+      const res = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(options.body),
+      });
+      if (!res.ok) {
+        throw new Error(`${res.status}`);
+      }
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No stream");
+      const decoder = new TextDecoder();
+      let fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value, { stream: true });
+        setCompletion(fullText);
+      }
       fetchInsights();
       toast.success("分析完成");
-    },
-    onError: (error) => {
-      const msg = error.message ?? "";
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "";
       if (msg.includes("402")) {
         toast.error("积分不足，请充值后继续");
       } else if (msg.includes("429")) {
@@ -34,8 +53,10 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
       } else {
         toast.error("分析失败，请稍后重试");
       }
-    },
-  });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchInsights = async () => {
     const res = await fetch(`/api/insights?documentId=${document.id}`);

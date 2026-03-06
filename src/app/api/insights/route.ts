@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { streamText } from "ai";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
-import { deepseekModel } from "@/lib/deepseek";
+import { deepseekClient, DEEPSEEK_MODEL } from "@/lib/deepseek";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { deductCredits } from "@/lib/credits";
 import { resolvePrompt } from "@/lib/prompts";
@@ -111,39 +110,67 @@ export async function POST(request: NextRequest) {
   );
 
   // 流式调用 DeepSeek
-  const result = streamText({
-    model: deepseekModel as any,
-    system,
-    prompt: userPrompt,
-    async onFinish({ text, usage }) {
-      // 保存 insight 记录到 DB
-      const insertData: InsightRow = {
-        document_id: documentId,
-        user_id: user.id,
-        lens_type: lensType,
-        custom_lens_id: customLensId ?? null,
-        result: text,
-        model: "deepseek-chat",
-        prompt_version: promptVersion,
-        input_chars: typedDoc.char_count,
-        input_tokens: usage?.inputTokens ?? null,
-        output_tokens: usage?.outputTokens ?? null,
-        credits_cost: creditCost,
-      };
+  const stream = await deepseekClient.chat.completions.create({
+    model: DEEPSEEK_MODEL,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: userPrompt },
+    ],
+    stream: true,
+    stream_options: { include_usage: true },
+  });
 
-      const { error: insertError } = await supabase
-        .from("insights")
-        .insert(insertData as any);
+  let fullText = "";
+  let inputTokens: number | null = null;
+  let outputTokens: number | null = null;
 
-      if (insertError) {
-        console.error("Failed to insert insight:", insertError);
+  const encoder = new TextEncoder();
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content ?? "";
+          if (content) {
+            fullText += content;
+            controller.enqueue(encoder.encode(content));
+          }
+          if (chunk.usage) {
+            inputTokens = chunk.usage.prompt_tokens;
+            outputTokens = chunk.usage.completion_tokens;
+          }
+        }
+
+        // 流结束后保存 insight 记录
+        const insertData: InsightRow = {
+          document_id: documentId,
+          user_id: user.id,
+          lens_type: lensType,
+          custom_lens_id: customLensId ?? null,
+          result: fullText,
+          model: DEEPSEEK_MODEL,
+          prompt_version: promptVersion,
+          input_chars: typedDoc.char_count,
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          credits_cost: creditCost,
+        };
+
+        const { error: insertError } = await supabase
+          .from("insights")
+          .insert(insertData as any);
+
+        if (insertError) {
+          console.error("Failed to insert insight:", insertError);
+        }
+      } finally {
+        controller.close();
       }
-
-      // 使用 insight ID 更新 credit_transactions（需二次更新 deduct_credits 不支持，暂跳过）
     },
   });
 
-  return result.toTextStreamResponse();
+  return new Response(readableStream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
 
 // GET /api/insights?documentId=xxx — 获取文档历史 insights
