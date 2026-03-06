@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/supabase";
 import type { Profile } from "@/types";
@@ -52,6 +53,14 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .single();
 
   return data;
+}
+
+// 创建绕过 RLS 的管理员客户端（仅在服务端 API 路由中使用）
+export function createAdminClient() {
+  return createSupabaseClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 }
 
 // 验证是否为管理员（服务端）

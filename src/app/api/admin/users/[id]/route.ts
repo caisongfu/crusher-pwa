@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/supabase/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser, createClient, createAdminClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 // 更新用户状态验证
@@ -80,8 +79,9 @@ export async function PUT(
     // 获取路由参数
     const { id } = await params;
 
-    // 更新用户状态
-    const { data: updatedUser, error } = await (supabase as any)
+    // 更新用户状态（使用 service_role 客户端绕过 RLS）
+    const adminSupabase = createAdminClient();
+    const { data: updatedUser, error } = await adminSupabase
       .from('profiles')
       .update({
         disable_type: validatedData.disable_type,

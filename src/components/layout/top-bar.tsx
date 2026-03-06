@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { toast } from 'sonner'
+import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { useAuthStore } from '@/store'
 import type { Profile } from '@/types'
 
 interface TopBarProps {
@@ -24,6 +26,16 @@ interface TopBarProps {
 
 export function TopBar({ profile }: TopBarProps) {
   const router = useRouter()
+  const setProfile = useAuthStore((s) => s.setProfile)
+  const setCredits = useAuthStore((s) => s.setCredits)
+  const initialize = useAuthStore((s) => s.initialize)
+
+  // 同步服务器端的profile数据到客户端store
+  useEffect(() => {
+    setProfile(profile)
+    setCredits(profile.credits)
+    initialize(profile.id, profile.credits)
+  }, [profile, setProfile, setCredits, initialize])
 
   async function handleLogout() {
     const supabase = createClient()

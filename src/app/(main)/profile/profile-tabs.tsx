@@ -1,7 +1,8 @@
 // src/app/(main)/profile/profile-tabs.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Profile, CreditTransaction, PACKAGES, Feedback } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,10 +40,12 @@ export function ProfileTabs({ profile, transactions, feedbacks, email }: Profile
     setShowModal(true)
   }
 
-  const refreshFeedbacks = async () => {
-    // 刷新反馈列表的逻辑可以在父组件处理
-    window.location.reload()
-  }
+  const router = useRouter()
+
+  const refreshFeedbacks = useCallback(() => {
+    // 使用router.refresh()刷新服务器数据，不会重置客户端状态
+    router.refresh()
+  }, [router])
 
   return (
     <div>
@@ -185,7 +188,14 @@ export function ProfileTabs({ profile, transactions, feedbacks, email }: Profile
               <span>📧</span>
               <div>
                 <p className="text-sm font-medium">PayPal</p>
-                <p className="text-sm text-muted-foreground">PayPal.Me/SoulfulCai</p>
+                <a
+                  href="https://PayPal.Me/SoulfulCai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  跳转支付
+                </a>
               </div>
             </div>
             <div className="flex items-center gap-2">
