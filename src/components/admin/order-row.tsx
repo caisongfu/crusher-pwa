@@ -1,3 +1,5 @@
+import React from 'react';
+import { TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_BADGE_VARIANTS, type OrderStatus } from '@/lib/constants';
