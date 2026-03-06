@@ -60,7 +60,7 @@ export async function PATCH(
     }
 
     const supabase = await createClient()
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('custom_lenses')
       .update({ ...parsed.data, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -98,7 +98,7 @@ export async function DELETE(
     const supabase = await createClient()
 
     // 软删除：is_active = false
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('custom_lenses')
       .update({ is_active: false })
       .eq('id', id)

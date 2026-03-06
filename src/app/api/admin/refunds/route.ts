@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 获取总数
-    const { count, error: countError } = await query.select("*", { count: "exact" });
+    const { count, error: countError } = await (query as any).select("*").count("exact", { head: true });
 
     if (countError) {
       console.error('查询退款请求总数失败:', countError);

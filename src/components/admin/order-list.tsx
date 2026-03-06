@@ -39,7 +39,7 @@ interface Order {
 export function OrderList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(PAGINATION.DEFAULT_PAGE);
+  const [page, setPage] = useState<number>(PAGINATION.DEFAULT_PAGE);
   const [loading, setLoading] = useState(false);
 
   // 筛选状态
@@ -213,7 +213,7 @@ export function OrderList() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage((p: number) => Math.max(1, p - 1))}
             disabled={page === 1}
           >
             上一页

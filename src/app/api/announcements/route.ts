@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     // 过滤掉已过期的公告
     const now = new Date()
-    const validAnnouncements = (announcements || []).filter(a => {
+    const validAnnouncements = (announcements || []).filter((a: any) => {
       if (!a.expires_at) return true
       return new Date(a.expires_at) > now
     })

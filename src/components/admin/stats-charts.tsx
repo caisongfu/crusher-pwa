@@ -30,21 +30,8 @@ interface DailyStats {
 }
 
 // 格式化日期为 YYYY-MM-DD
-const formatDateToISO = (date: Date): string => {
-  return date.toISOString().split('T')[0];
-};
 
 // 格式化日期为 MM/DD（用于图表显示）
-const formatDateToMD = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-};
-
-// 格式化收入（分转元）
-const formatRevenue = (revenue: number): string => {
-  return `¥${(revenue / 100).toFixed(2)}`;
-};
-
 export function StatsCharts() {
   const [stats, setStats] = useState<DailyStats[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,7 +105,6 @@ export function StatsCharts() {
       <div className="flex gap-4 items-center">
         <Input
           type="date"
-          label="开始日期"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
           className="w-40"
@@ -126,10 +112,10 @@ export function StatsCharts() {
         <span>至</span>
         <Input
           type="date"
-          label="结束日期"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
           className="w-40"
+        />
         />
         <Button onClick={loadStats} disabled={loading || !startDate || !endDate}>
           {loading ? '加载中...' : '刷新'}

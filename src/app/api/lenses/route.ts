@@ -44,7 +44,7 @@ export async function GET() {
     }
 
     const supabase = await createClient()
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('custom_lenses')
       .select('id, name, icon, description, system_prompt, created_at')
       .eq('user_id', user.id)
@@ -87,18 +87,18 @@ export async function POST(req: Request) {
     const supabase = await createClient()
 
     // 检查用户透镜数量限制
-    const { count } = await supabase
+    const { count } = await (supabase as any)
       .from('custom_lenses')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_active', true)
 
-    if (count !== undefined && count >= MAX_LENSES_PER_USER) {
+    if (count !== null && count !== undefined && count >= MAX_LENSES_PER_USER) {
       return errorResponse(`自定义透镜数量已达上限（${MAX_LENSES_PER_USER}个）`, 400)
     }
 
     // 创建透镜
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('custom_lenses')
       .insert({ ...parsed.data, user_id: user.id })
       .select('id, name, icon, description, system_prompt, created_at')

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 动态限流检查
-  const rateLimitResult = await checkRateLimit(user.id, profile.credits)
+  const rateLimitResult = await checkRateLimit(user.id, (profile as any).credits)
   if (!rateLimitResult.allowed) {
     return NextResponse.json(
       {

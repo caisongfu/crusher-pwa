@@ -95,11 +95,15 @@ export async function POST(req: Request) {
     }
 
     // 创建反馈
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('feedbacks')
       .insert({ ...parsed.data, user_id: user.id })
       .select('id')
       .single()
+
+    if (error) {
+      return errorResponse('提交失败，请重试', 500)
+    }
 
     if (error) {
       return errorResponse('提交失败，请重试', 500)
