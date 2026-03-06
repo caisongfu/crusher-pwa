@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Select } from '@/components/ui/select'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -205,31 +205,31 @@ export default function AdminFeedbacksPage() {
         <CardContent>
           <div className="flex gap-4">
             <Select value={selectedType} onValueChange={setSelectedType}>
-              <Select.Trigger className="w-[200px]">
-                <Select.Placeholder>反馈类型</Select.Placeholder>
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value="">全部类型</Select.Item>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue>反馈类型</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">全部类型</SelectItem>
                 {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                  <Select.Item key={value} value={value}>
+                  <SelectItem key={value} value={value}>
                     {label}
-                  </Select.Item>
+                  </SelectItem>
                 ))}
-              </Select.Content>
+              </SelectContent>
             </Select>
 
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <Select.Trigger className="w-[200px]">
-                <Select.Placeholder>状态</Select.Placeholder>
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value="">全部状态</Select.Item>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue>状态</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">全部状态</SelectItem>
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <Select.Item key={value} value={value}>
+                  <SelectItem key={value} value={value}>
                     {label}
-                  </Select.Item>
+                  </SelectItem>
                 ))}
-              </Select.Content>
+              </SelectContent>
             </Select>
 
             <Button variant="outline" onClick={() => setSelectedStatus('')}>
@@ -275,7 +275,7 @@ export default function AdminFeedbacksPage() {
                         {STATUS_LABELS[feedback.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell>{feedback.user_email}</TableCell>
+                    <TableCell>(feedback.profiles?.email || feedback.profiles?.username || feedback.user_id)</TableCell>
                     <TableCell>
                       {formatDistanceToNow(new Date(feedback.created_at), {
                         addSuffix: true,

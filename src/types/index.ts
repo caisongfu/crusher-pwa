@@ -136,6 +136,10 @@ export interface Feedback {
   handled_by: string | null
   created_at: string
   updated_at: string
+  profiles?: {
+    username: string | null
+    email: string | null
+  }
 }
 
 // =============================================
