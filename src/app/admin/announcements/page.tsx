@@ -57,12 +57,15 @@ export default function AdminAnnouncementsPage() {
     try {
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
-      const { error } = await supabase.from('announcements').insert({
-        title: form.title,
-        content: form.content,
-        type: form.type,
-        expires_at: form.expires_at || null,
-      })
+      const { error } = await supabase
+        .from('announcements')
+        .insert({
+          title: form.title,
+          content: form.content,
+          type: form.type,
+          expires_at: form.expires_at || null,
+        })
+        .select()
       if (error) throw error
       toast.success('公告已创建')
       setCreateOpen(false)

@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/supabase/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { statsCache } from '@/lib/cache/redis';
 
 // 请求参数验证
 const StatsQuerySchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });
+
+// 缓存 TTL: 10 分钟（600 秒）
+const CACHE_TTL = 600;
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,7 +21,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createServerClient();
+    const supabase = await createClient();
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -34,14 +38,23 @@ export async function GET(req: NextRequest) {
 
     // 如果没有指定日期范围，返回今日统计
     if (!params.startDate && !params.endDate) {
-      // 使用数据库函数获取今日统计
-      const { data: todayStats, error: statsError } = await supabase
-        .rpc('get_today_stats');
+      // 使用缓存获取今日统计
+      const cacheKey = `today`;
+      const todayStats = await statsCache.cached(
+        cacheKey,
+        async () => {
+          const { data, error: statsError } = await supabase
+            .rpc('get_today_stats');
 
-      if (statsError) {
-        console.error('获取今日统计失败:', statsError);
-        return NextResponse.json({ error: '获取统计失败' }, { status: 500 });
-      }
+          if (statsError) {
+            console.error('获取今日统计失败:', statsError);
+            throw new Error('获取统计失败');
+          }
+
+          return data;
+        },
+        CACHE_TTL
+      );
 
       // 格式化返回数据
       return NextResponse.json({
@@ -54,20 +67,30 @@ export async function GET(req: NextRequest) {
     const startDate = params.startDate || new Date().toISOString().split('T')[0];
     const endDate = params.endDate || new Date().toISOString().split('T')[0];
 
-    const { data: stats, error } = await supabase
-      .from('daily_stats')
-      .select('*')
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: true });
+    // 使用缓存获取日期范围统计
+    const cacheKey = `range:${startDate}:${endDate}`;
+    const stats = await statsCache.cached(
+      cacheKey,
+      async () => {
+        const { data, error } = await supabase
+          .from('daily_stats')
+          .select('*')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .order('date', { ascending: true });
 
-    if (error) {
-      console.error('查询统计数据失败:', error);
-      return NextResponse.json({ error: '查询失败' }, { status: 500 });
-    }
+        if (error) {
+          console.error('查询统计数据失败:', error);
+          throw new Error('查询失败');
+        }
+
+        return data || [];
+      },
+      CACHE_TTL
+    );
 
     return NextResponse.json({
-      stats: stats || [],
+      stats,
       startDate,
       endDate,
     });

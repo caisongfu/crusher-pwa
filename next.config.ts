@@ -25,8 +25,26 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // 为认证相关路由添加额外的缓存控制
+      {
+        source: '/(login|register)',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, max-age=0' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' },
+        ],
+      },
     ];
   },
+
+  // 优化实验性功能
+  experimental: {
+    // 启用优化的包导入
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-*'],
+  },
+
+  // 服务器组件优化
+  serverExternalPackages: ['@supabase/supabase-js'],
 };
 
 // PWA 配置

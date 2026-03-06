@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/supabase/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 // 更新用户状态验证
@@ -10,7 +10,7 @@ const UpdateUserSchema = z.object({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证管理员权限
@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createServerClient();
+    const supabase = await createClient();
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -30,11 +30,14 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // 获取路由参数
+    const { id } = await params;
+
     // 查询用户详情
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error || !data) {
@@ -50,7 +53,7 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证管理员权限
@@ -59,7 +62,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createServerClient();
+    const supabase = await createClient();
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -74,6 +77,9 @@ export async function PUT(
     const body = await req.json();
     const validatedData = UpdateUserSchema.parse(body);
 
+    // 获取路由参数
+    const { id } = await params;
+
     // 更新用户状态
     const { data: updatedUser, error } = await supabase
       .from('profiles')
@@ -81,7 +87,7 @@ export async function PUT(
         disable_type: validatedData.disable_type,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 

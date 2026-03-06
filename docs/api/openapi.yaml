@@ -1,0 +1,1456 @@
+openapi: 3.0.3
+info:
+  title: Crusher API
+  description: |
+    碎石记（Crusher）API 文档
+
+    ## 认证
+    大多数端点需要 Bearer Token 认证。Token 通过 Supabase Auth 获取。
+
+    ## 错误响应
+    所有错误响应遵循统一格式：
+    ```json
+    {
+      "success": false,
+      "error": "错误消息",
+      "code": "错误码（可选）",
+      "details": {}
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@crusher.com
+
+servers:
+  - url: http://localhost:3000
+    description: 本地开发环境
+  - url: https://crusher.com
+    description: 生产环境
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # 通用类型
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: '错误消息'
+        code:
+          type: string
+          example: 'ERROR_CODE'
+        details:
+          type: object
+
+    ApiMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        totalPages:
+          type: integer
+          example: 5
+        hasMore:
+          type: boolean
+          example: true
+
+    # 用户相关
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, admin]
+        credits:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # 文档相关
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        raw_content:
+          type: string
+        char_count:
+          type: integer
+        source_type:
+          type: string
+          enum: [text, voice]
+        is_deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateDocumentRequest:
+      type: object
+      required:
+        - raw_content
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        raw_content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        source_type:
+          type: string
+          enum: [text, voice]
+          default: text
+
+    # 透镜相关
+    LensType:
+      type: string
+      enum: [requirements, meeting, review, risk, change, postmortem, tech, custom]
+
+    CustomLens:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        icon:
+          type: string
+        description:
+          type: string
+          nullable: true
+        system_prompt:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateLensRequest:
+      type: object
+      required:
+        - name
+        - icon
+        - system_prompt
+      properties:
+        name:
+          type: string
+        icon:
+          type: string
+        description:
+          type: string
+          nullable: true
+        system_prompt:
+          type: string
+          minLength: 1
+        is_active:
+          type: boolean
+          default: true
+
+    # 分析结果相关
+    Insight:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        lens_type:
+          $ref: '#/components/schemas/LensType'
+        custom_lens_id:
+          type: string
+          format: uuid
+          nullable: true
+        result:
+          type: string
+        model:
+          type: string
+        prompt_version:
+          type: string
+        input_chars:
+          type: integer
+          nullable: true
+        input_tokens:
+          type: integer
+          nullable: true
+        output_tokens:
+          type: integer
+          nullable: true
+        credits_cost:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    # 支付订单相关
+    PaymentOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        out_trade_no:
+          type: string
+        platform_order:
+          type: string
+          nullable: true
+        package_name:
+          type: string
+        amount_fen:
+          type: integer
+        credits_granted:
+          type: integer
+        payment_method:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, paid, failed, refunded]
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreatePaymentRequest:
+      type: object
+      required:
+        - package_name
+      properties:
+        package_name:
+          type: string
+          enum: [入门包, 标准包, 专业包]
+
+    # 反馈相关
+    Feedback:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [payment, bug, feature, other]
+        title:
+          type: string
+        content:
+          type: string
+        context_url:
+          type: string
+          format: uri
+          nullable: true
+        related_order_id:
+          type: string
+          format: uuid
+          nullable: true
+        related_insight_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [pending, processing, resolved, closed]
+        admin_note:
+          type: string
+          nullable: true
+        handled_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateFeedbackRequest:
+      type: object
+      required:
+        - type
+        - title
+        - content
+      properties:
+        type:
+          type: string
+          enum: [payment, bug, feature, other]
+        title:
+          type: string
+        content:
+          type: string
+        context_url:
+          type: string
+          format: uri
+          nullable: true
+        related_order_id:
+          type: string
+          format: uuid
+          nullable: true
+        related_insight_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    # 退款请求相关
+    RefundRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        refund_amount:
+          type: integer
+        requested_by:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        approved_by:
+          type: string
+          format: uuid
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        rejection_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    # 每日统计相关
+    DailyStats:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        new_users:
+          type: integer
+        orders:
+          type: integer
+        revenue:
+          type: integer
+        credits_consumed:
+          type: integer
+        active_users:
+          type: integer
+
+paths:
+  # ==================== 文档 API ====================
+  /api/documents:
+    get:
+      tags:
+        - Documents
+      summary: 获取文档列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 成功返回文档列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags:
+        - Documents
+      summary: 创建新文档
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+      responses:
+        '201':
+          description: 文档创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/documents/{id}:
+    get:
+      tags:
+        - Documents
+      summary: 获取文档详情
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功返回文档详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Documents
+      summary: 删除文档（软删除）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 文档删除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== 透镜 API ====================
+  /api/lenses:
+    get:
+      tags:
+        - Lenses
+      summary: 获取透镜列表
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回透镜列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CustomLens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Lenses
+      summary: 创建自定义透镜
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLensRequest'
+      responses:
+        '201':
+          description: 透镜创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CustomLens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/lenses/{id}:
+    get:
+      tags:
+        - Lenses
+      summary: 获取透镜详情
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功返回透镜详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CustomLens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Lenses
+      summary: 删除透镜
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 透镜删除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== 分析结果 API ====================
+  /api/insights:
+    get:
+      tags:
+        - Insights
+      summary: 获取分析结果列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: document_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功返回分析结果列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Insight'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Insights
+      summary: 创建分析结果（流式响应）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - document_id
+                - lens_type
+              properties:
+                document_id:
+                  type: string
+                  format: uuid
+                lens_type:
+                  $ref: '#/components/schemas/LensType'
+                custom_lens_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '200':
+          description: 成功返回流式分析结果（Server-Sent Events）
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  # ==================== 支付 API ====================
+  /api/payment/create:
+    post:
+      tags:
+        - Payment
+      summary: 创建支付订单
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '200':
+          description: 成功返回支付链接
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          payment_url:
+                            type: string
+                            format: uri
+                          order_id:
+                            type: string
+                            format: uuid
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/payment/webhook:
+    post:
+      tags:
+        - Payment
+      summary: 支付平台回调（无需认证）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: 回调处理成功
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'success'
+        '400':
+          description: 签名验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # ==================== 反馈 API ====================
+  /api/feedbacks:
+    post:
+      tags:
+        - Feedback
+      summary: 提交反馈
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeedbackRequest'
+      responses:
+        '201':
+          description: 反馈提交成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Feedback'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # ==================== 管理后台 - 用户 API ====================
+  /api/admin/users:
+    get:
+      tags:
+        - Admin
+      summary: 获取用户列表（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功返回用户列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Profile'
+                      meta:
+                        $ref: '#/components/schemas/ApiMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users/{id}:
+    get:
+      tags:
+        - Admin
+      summary: 获取用户详情（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功返回用户详情
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Admin
+      summary: 更新用户状态（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - disable_type
+              properties:
+                disable_type:
+                  type: string
+                  enum: [normal, login_disabled, usage_disabled]
+      responses:
+        '200':
+          description: 用户状态更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # ==================== 管理后台 - 订单 API ====================
+  /api/admin/orders:
+    get:
+      tags:
+        - Admin
+      summary: 获取订单列表（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, failed, refunded]
+      responses:
+        '200':
+          description: 成功返回订单列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PaymentOrder'
+                      meta:
+                        $ref: '#/components/schemas/ApiMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ==================== 管理后台 - 退款 API ====================
+  /api/admin/refunds:
+    get:
+      tags:
+        - Admin
+      summary: 获取退款请求列表（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 成功返回退款请求列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RefundRequest'
+                      meta:
+                        $ref: '#/components/schemas/ApiMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/refunds/{id}/approve:
+    post:
+      tags:
+        - Admin
+      summary: 批准/拒绝退款请求（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approved
+              properties:
+                approved:
+                  type: boolean
+                rejection_reason:
+                  type: string
+      responses:
+        '200':
+          description: 退款请求处理成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RefundRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # ==================== 管理后台 - 积分 API ====================
+  /api/admin/credits:
+    post:
+      tags:
+        - Admin
+      summary: 创建积分调整请求（管理员）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - amount
+                - type
+                - description
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: integer
+                type:
+                  type: string
+                  enum: [manual_grant, admin_deduct]
+                description:
+                  type: string
+      responses:
+        '201':
+          description: 积分调整请求创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          status:
+                            type: string
+                            enum: [pending, approved, rejected]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/credits/approve:
+    post:
+      tags:
+        - Admin
+      summary: 批准积分调整请求（管理员）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: 积分调整请求批准成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/credits/pending:
+    get:
+      tags:
+        - Admin
+      summary: 获取待审批积分请求列表（管理员）
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回待审批积分请求列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            user_id:
+                              type: string
+                              format: uuid
+                            amount:
+                              type: integer
+                            type:
+                              type: string
+                            description:
+                              type: string
+                            requested_by:
+                              type: string
+                            status:
+                              type: string
+                              enum: [pending, approved, rejected]
+                            created_at:
+                              type: string
+                              format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/credits/transactions:
+    get:
+      tags:
+        - Admin
+      summary: 获取积分交易历史（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 成功返回积分交易历史
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            user_id:
+                              type: string
+                              format: uuid
+                            amount:
+                              type: integer
+                            balance_after:
+                              type: integer
+                            type:
+                              type: string
+                              enum: [payment, manual_grant, consumed, admin_deduct, refund]
+                            description:
+                              type: string
+                              nullable: true
+                            related_insight_id:
+                              type: string
+                              format: uuid
+                              nullable: true
+                            related_order_id:
+                              type: string
+                              format: uuid
+                              nullable: true
+                            operated_by:
+                              type: string
+                              format: uuid
+                              nullable: true
+                            created_at:
+                              type: string
+                              format: date-time
+                      meta:
+                        $ref: '#/components/schemas/ApiMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ==================== 管理后台 - 统计 API ====================
+  /api/admin/stats:
+    get:
+      tags:
+        - Admin
+      summary: 获取今日统计数据（管理员）
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回统计数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DailyStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ==================== 认证 API ====================
+  /api/auth/callback:
+    get:
+      tags:
+        - Auth
+      summary: OAuth 回调（无需认证）
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: provider
+          in: query
+          schema:
+            type: string
+      responses:
+        '307':
+          description: 重定向到应用主页
+        '400':
+          description: 回调参数错误
+
+components:
+  responses:
+    Unauthorized:
+      description: 未授权（未登录或 Token 无效）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Unauthorized'
+            code: 'UNAUTHORIZED'
+
+    Forbidden:
+      description: 禁止访问（权限不足）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Forbidden'
+            code: 'FORBIDDEN'
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Resource not found'
+            code: 'NOT_FOUND'
+
+    ValidationError:
+      description: 请求参数验证失败
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Validation failed'
+            code: 'VALIDATION_ERROR'
+
+    ServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Internal server error'
+            code: 'INTERNAL_ERROR'
+
+tags:
+  - name: Documents
+    description: 文档管理 API
+  - name: Lenses
+    description: 透镜管理 API
+  - name: Insights
+    description: 分析结果 API
+  - name: Payment
+    description: 支付订单 API
+  - name: Feedback
+    description: 反馈 API
+  - name: Admin
+    description: 管理后台 API
+  - name: Auth
+    description: 认证 API

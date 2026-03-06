@@ -208,3 +208,58 @@ export function calculateCreditCost(charCount: number): number {
   if (charCount <= 10000) return 22
   return 22 + Math.ceil((charCount - 10000) / 1000) * 5
 }
+
+// =============================================
+// API 响应类型（统一格式）
+// =============================================
+
+/**
+ * 成功响应
+ * @template T - 数据类型
+ */
+export interface ApiSuccessResponse<T> {
+  success: true
+  data: T
+  meta?: ApiMeta
+}
+
+/**
+ * 失败响应
+ */
+export interface ApiErrorResponse {
+  success: false
+  error: string
+  code?: string        // 错误码（可选，用于国际化）
+  details?: unknown    // 详细错误信息（可选，用于调试）
+}
+
+/**
+ * 统一 API 响应类型
+ * @template T - 成功响应的数据类型
+ */
+export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse
+
+/**
+ * 分页元数据
+ */
+export interface ApiMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages?: number
+  hasMore?: boolean
+}
+
+/**
+ * 类型守卫：判断是否为成功响应
+ */
+export function isApiSuccess<T>(response: ApiResponse<T>): response is ApiSuccessResponse<T> {
+  return response.success === true
+}
+
+/**
+ * 类型守卫：判断是否为失败响应
+ */
+export function isApiError(response: ApiResponse): response is ApiErrorResponse {
+  return response.success === false
+}
