@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 import withPWA from '@ducanh2912/next-pwa';
 
 const nextConfig: NextConfig = {
+  // Turbopack 配置（Next.js 16 默认启用）
+  turbopack: {},
+
   // 安全 Headers
   async headers() {
     return [
