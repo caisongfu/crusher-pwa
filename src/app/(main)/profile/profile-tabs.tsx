@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Profile, CreditTransaction, PACKAGES } from '@/types'
+import { Profile, CreditTransaction, PACKAGES, Feedback } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -11,16 +11,18 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { ProfileFeedback } from './profile-feedback'
 
 interface ProfileTabsProps {
   profile: Profile | null
   transactions: CreditTransaction[]
+  feedbacks: Feedback[]
   email: string
 }
 
-type Tab = 'account' | 'credits' | 'history'
+type Tab = 'account' | 'credits' | 'history' | 'feedbacks'
 
-export function ProfileTabs({ profile, transactions, email }: ProfileTabsProps) {
+export function ProfileTabs({ profile, transactions, feedbacks, email }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('account')
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -29,11 +31,17 @@ export function ProfileTabs({ profile, transactions, email }: ProfileTabsProps) 
     { key: 'account', label: '账户信息' },
     { key: 'credits', label: '积分 & 充值' },
     { key: 'history', label: '消费记录' },
+    { key: 'feedbacks', label: '我的反馈' },
   ]
 
   const handlePackageClick = (pkgName: string) => {
     setSelectedPackage(pkgName)
     setShowModal(true)
+  }
+
+  const refreshFeedbacks = async () => {
+    // 刷新反馈列表的逻辑可以在父组件处理
+    window.location.reload()
   }
 
   return (
@@ -155,7 +163,15 @@ export function ProfileTabs({ profile, transactions, email }: ProfileTabsProps) 
         </div>
       )}
 
-      {/* 充值 Modal（暂不可用）*/}
+      {/* 我的反馈 Tab */}
+      {activeTab === 'feedbacks' && (
+        <ProfileFeedback
+          feedbacks={feedbacks}
+          onRefresh={refreshFeedbacks}
+        />
+      )}
+
+      {/* 充值 Modal（暂不可用） */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent>
           <DialogHeader>
