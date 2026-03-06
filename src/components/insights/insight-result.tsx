@@ -5,6 +5,15 @@ import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { MoreVertical } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { FeedbackDialog } from '@/components/feedback-dialog'
 import type { Insight } from '@/types'
 
 const LENS_META: Record<string, { icon: string; name: string }> = {
@@ -52,6 +61,25 @@ export function InsightResult({
             <span className="text-xs text-zinc-400">
               {format(new Date(insight.created_at), 'MM-dd HH:mm', { locale: zhCN })}
             </span>
+          )}
+          {/* 更多操作菜单 */}
+          {insight && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="h-8 w-8 flex items-center justify-center hover:bg-zinc-100 rounded transition-colors">
+                  <MoreVertical className="h-4 w-4 text-zinc-500" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <FeedbackDialog
+                    defaultType="other"
+                    defaultRelatedInsightId={insight.id}
+                    trigger={<span className="w-full text-left text-sm">反馈内容问题</span>}
+                  />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
