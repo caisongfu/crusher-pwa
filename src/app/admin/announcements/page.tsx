@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -20,7 +20,10 @@ export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null)
   const [form, setForm] = useState({
     title: '',
     content: '',
@@ -33,15 +36,18 @@ export default function AdminAnnouncementsPage() {
   }, [])
 
   async function fetchAnnouncements() {
+    setLoading(true)
     try {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false })
-      setAnnouncements(data ?? [])
-    } catch {
+      const response = await fetch('/api/admin/announcements')
+      const data = await response.json()
+
+      if (response.ok) {
+        setAnnouncements(data.announcements)
+      } else {
+        toast.error(data.error || '加载失败')
+      }
+    } catch (error) {
+      console.error('加载公告失败:', error)
       toast.error('加载失败')
     } finally {
       setLoading(false)
@@ -53,110 +59,197 @@ export default function AdminAnnouncementsPage() {
       toast.error('标题和内容必填')
       return
     }
+
     setCreating(true)
     try {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('announcements')
-        .insert({
+      const response = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: form.title,
           content: form.content,
           type: form.type,
           expires_at: form.expires_at || null,
-        })
-        .select()
-      if (error) throw error
-      toast.success('公告已创建')
-      setCreateOpen(false)
-      setForm({ title: '', content: '', type: 'info', expires_at: '' })
-      fetchAnnouncements()
-    } catch {
+          is_active: true,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('公告已创建')
+        setCreateOpen(false)
+        setForm({ title: '', content: '', type: 'info', expires_at: '' })
+        fetchAnnouncements()
+      } else {
+        toast.error(data.error || '创建失败')
+      }
+    } catch (error) {
+      console.error('创建公告失败:', error)
       toast.error('创建失败')
     } finally {
       setCreating(false)
     }
   }
 
-  async function handleDeactivate(id: string) {
+  async function handleUpdate() {
+    if (!selectedAnnouncement) return
+
+    setEditing(true)
     try {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('announcements')
-        .update({ is_active: false })
-        .eq('id', id)
-      if (error) throw error
-      toast.success('公告已停用')
-      setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, is_active: false } : a))
-    } catch {
+      const response = await fetch(`/api/admin/announcements/${selectedAnnouncement.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          content: form.content,
+          type: form.type,
+          expires_at: form.expires_at || null,
+          is_active: true,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('公告已更新')
+        setEditOpen(false)
+        setSelectedAnnouncement(null)
+        fetchAnnouncements()
+      } else {
+        toast.error(data.error || '更新失败')
+      }
+    } catch (error) {
+      console.error('更新公告失败:', error)
+      toast.error('更新失败')
+    } finally {
+      setEditing(false)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('确定要删除此公告吗？')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/announcements/${id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('公告已删除')
+        fetchAnnouncements()
+      } else {
+        toast.error(data.error || '删除失败')
+      }
+    } catch (error) {
+      console.error('删除公告失败:', error)
+      toast.error('删除失败')
+    }
+  }
+
+  async function handleToggleActive(id: string, isActive: boolean) {
+    try {
+      const response = await fetch(`/api/admin/announcements/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !isActive }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success(`公告已${!isActive ? '激活' : '停用'}`)
+        fetchAnnouncements()
+      } else {
+        toast.error(data.error || '操作失败')
+      }
+    } catch (error) {
+      console.error('切换公告状态失败:', error)
       toast.error('操作失败')
     }
+  }
+
+  const handleEdit = (announcement: Announcement) => {
+    setSelectedAnnouncement(announcement)
+    setForm({
+      title: announcement.title,
+      content: announcement.content,
+      type: announcement.type,
+      expires_at: announcement.expires_at ? new Date(announcement.expires_at).toISOString().slice(0, 16) : '',
+    })
+    setEditOpen(true)
   }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">系统公告</h1>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              新建公告
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>新建公告</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">标题</label>
-                <Input
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="公告标题"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">内容</label>
-                <Textarea
-                  value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  placeholder="公告内容（显示在横幅上）"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">类型</label>
-                <div className="flex gap-2 mt-1">
-                  {(['info', 'warning', 'maintenance'] as AnnouncementType[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setForm({ ...form, type: t })}
-                      className={`px-3 py-1 rounded text-sm border ${
-                        form.type === t ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">到期时间（可选）</label>
-                <Input
-                  type="datetime-local"
-                  value={form.expires_at}
-                  onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
-                />
-              </div>
-              <Button onClick={handleCreate} disabled={creating} className="w-full">
-                {creating ? '创建中...' : '创建'}
+        <div className="flex gap-2">
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                新建公告
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>新建公告</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">标题</label>
+                  <Input
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    placeholder="公告标题"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">内容（支持 Markdown）</label>
+                  <Textarea
+                    value={form.content}
+                    onChange={(e) => setForm({ ...form, content: e.target.value })}
+                    placeholder="公告内容（显示在横幅上）"
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">类型</label>
+                  <div className="flex gap-2 mt-1">
+                    {(['info', 'warning', 'maintenance'] as AnnouncementType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setForm({ ...form, type: t })}
+                        className={`px-3 py-1 rounded text-sm border ${
+                          form.type === t ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">到期时间（可选）</label>
+                  <Input
+                    type="datetime-local"
+                    value={form.expires_at}
+                    onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+                  />
+                </div>
+                <Button onClick={handleCreate} disabled={creating} className="w-full">
+                  {creating ? '创建中...' : '创建'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {loading ? (
@@ -184,19 +277,89 @@ export default function AdminAnnouncementsPage() {
                   {announcement.expires_at && ` · 到期：${new Date(announcement.expires_at).toLocaleString('zh-CN')}`}
                 </p>
               </div>
-              {announcement.is_active && (
+              <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleDeactivate(announcement.id)}
+                  onClick={() => handleEdit(announcement)}
                 >
-                  停用
+                  <Edit className="w-4 h-4" />
                 </Button>
-              )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleToggleActive(announcement.id, announcement.is_active)}
+                >
+                  {announcement.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDelete(announcement.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* 编辑公告对话框 */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑公告</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">标题</label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="公告标题"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">内容（支持 Markdown）</label>
+              <Textarea
+                value={form.content}
+                onChange={(e) => setForm({ ...form, content: e.target.value })}
+                placeholder="公告内容（显示在横幅上）"
+                rows={4}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">类型</label>
+              <div className="flex gap-2 mt-1">
+                {(['info', 'warning', 'maintenance'] as AnnouncementType[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setForm({ ...form, type: t })}
+                    className={`px-3 py-1 rounded text-sm border ${
+                      form.type === t ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">到期时间（可选）</label>
+              <Input
+                type="datetime-local"
+                value={form.expires_at}
+                onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+              />
+            </div>
+            <Button onClick={handleUpdate} disabled={editing} className="w-full">
+              {editing ? '更新中...' : '更新'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
