@@ -5,4 +5,4 @@ export const deepseek = createOpenAI({
   baseURL: 'https://api.deepseek.com/v1',
 })
 
-export const deepseekModel = deepseek('deepseek-chat')
+export const deepseekModel = deepseek('deepseek-reasoner')
