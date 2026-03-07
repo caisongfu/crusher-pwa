@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { TrendingUp, Users, ShoppingCart, Zap } from "lucide-react";
+import { TrendingUp, Users, ShoppingCart, Zap, BarChart2, Cpu } from "lucide-react";
 import { formatDateToISO, formatRevenue, formatDateToMD } from "@/lib/format";
 
 interface DailyStats {
@@ -27,9 +27,18 @@ interface DailyStats {
   revenue: number;
   credits_consumed: number;
   active_users: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
 }
 
 // 格式化日期为 YYYY-MM-DD
+
+// 格式化 token 数量（K / M）
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
 
 // 格式化日期为 MM/DD（用于图表显示）
 export function StatsCharts() {
@@ -93,6 +102,8 @@ export function StatsCharts() {
           revenue: acc.revenue + stat.revenue,
           creditsConsumed: acc.creditsConsumed + stat.credits_consumed,
           activeUsers: Math.max(acc.activeUsers, stat.active_users),
+          inputTokens: acc.inputTokens + (stat.total_input_tokens ?? 0),
+          outputTokens: acc.outputTokens + (stat.total_output_tokens ?? 0),
         }),
         {
           newUsers: 0,
@@ -100,6 +111,8 @@ export function StatsCharts() {
           revenue: 0,
           creditsConsumed: 0,
           activeUsers: 0,
+          inputTokens: 0,
+          outputTokens: 0,
         }
       ),
     [stats]
@@ -130,9 +143,22 @@ export function StatsCharts() {
         </Button>
       </div>
 
+      {/* 加载中 / 空状态 */}
+      {loading && (
+        <div className="flex items-center justify-center py-20 text-muted-foreground">
+          加载中...
+        </div>
+      )}
+      {!loading && stats.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+          <BarChart2 className="h-12 w-12 opacity-30" />
+          <p className="text-sm">暂无统计数据</p>
+        </div>
+      )}
+
       {/* 关键指标卡片 */}
       {stats.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">新增用户</CardTitle>
@@ -183,6 +209,32 @@ export function StatsCharts() {
               <div className="text-2xl font-bold">{totals.creditsConsumed}</div>
               <p className="text-xs text-muted-foreground">
                 期间共消耗 {totals.creditsConsumed} 积分
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">输入 Token</CardTitle>
+              <Cpu className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatTokens(totals.inputTokens)}</div>
+              <p className="text-xs text-muted-foreground">
+                期间共 {formatTokens(totals.inputTokens)} input tokens
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">输出 Token</CardTitle>
+              <Cpu className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatTokens(totals.outputTokens)}</div>
+              <p className="text-xs text-muted-foreground">
+                期间共生成 {formatTokens(totals.outputTokens)} output tokens
               </p>
             </CardContent>
           </Card>
@@ -273,6 +325,48 @@ export function StatsCharts() {
                   name="积分消耗"
                 />
               </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Token 消耗趋势 */}
+      {stats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Token 消耗趋势</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={stats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tickFormatter={formatDateToMD} />
+                <YAxis tickFormatter={(v) => formatTokens(v)} />
+                <Tooltip
+                  labelFormatter={(label) =>
+                    new Date(label).toLocaleDateString("zh-CN")
+                  }
+                  formatter={(value: number, name: string) => [
+                    formatTokens(value),
+                    name,
+                  ]}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="total_input_tokens"
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  name="输入 Token"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total_output_tokens"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  name="输出 Token"
+                />
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

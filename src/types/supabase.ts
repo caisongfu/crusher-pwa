@@ -40,10 +40,12 @@ export interface Database {
           context?: Json
           created_at?: string
         }
+        Relationships: []
       }
       profiles: {
         Row: {
           id: string
+          email: string | null
           username: string | null
           role: 'user' | 'admin'
           credits: number
@@ -53,6 +55,7 @@ export interface Database {
         }
         Insert: {
           id: string
+          email?: string | null
           username?: string | null
           role?: 'user' | 'admin'
           credits?: number
@@ -62,6 +65,7 @@ export interface Database {
         }
         Update: {
           id?: string
+          email?: string | null
           username?: string | null
           role?: 'user' | 'admin'
           credits?: number
@@ -69,6 +73,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       custom_lenses: {
         Row: {
@@ -104,6 +109,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       documents: {
         Row: {
@@ -139,6 +145,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       payment_orders: {
         Row: {
@@ -180,11 +187,13 @@ export interface Database {
           paid_at?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       insights: {
         Row: {
           id: string
           document_id: string
+          document_ids: string[] | null
           user_id: string
           lens_type: 'requirements' | 'meeting' | 'review' | 'risk' | 'change' | 'postmortem' | 'tech' | 'custom'
           custom_lens_id: string | null
@@ -200,6 +209,7 @@ export interface Database {
         Insert: {
           id?: string
           document_id: string
+          document_ids?: string[] | null
           user_id: string
           lens_type: 'requirements' | 'meeting' | 'review' | 'risk' | 'change' | 'postmortem' | 'tech' | 'custom'
           custom_lens_id?: string | null
@@ -215,6 +225,7 @@ export interface Database {
         Update: {
           id?: string
           document_id?: string
+          document_ids?: string[] | null
           user_id?: string
           lens_type?: 'requirements' | 'meeting' | 'review' | 'risk' | 'change' | 'postmortem' | 'tech' | 'custom'
           custom_lens_id?: string | null
@@ -227,6 +238,7 @@ export interface Database {
           credits_cost?: number
           created_at?: string
         }
+        Relationships: []
       }
       credit_transactions: {
         Row: {
@@ -265,6 +277,7 @@ export interface Database {
           operated_by?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       feedbacks: {
         Row: {
@@ -312,6 +325,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       system_prompts: {
         Row: {
@@ -344,6 +358,7 @@ export interface Database {
           created_by?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       announcements: {
         Row: {
@@ -376,6 +391,7 @@ export interface Database {
           created_by?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       pending_credit_transactions: {
         Row: {
@@ -417,6 +433,7 @@ export interface Database {
           rejection_reason?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       credit_operations_audit: {
         Row: {
@@ -430,7 +447,7 @@ export interface Database {
           operation_time: string
           ip_address: string | null
           user_agent: string | null
-          details: Record<string, any>
+          details: Record<string, unknown>
         }
         Insert: {
           id?: string
@@ -443,9 +460,10 @@ export interface Database {
           operation_time?: string
           ip_address?: string | null
           user_agent?: string | null
-          details?: Record<string, any>
+          details?: Record<string, unknown>
         }
         Update: never
+        Relationships: []
       }
       refund_requests: {
         Row: {
@@ -484,6 +502,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       daily_stats: {
         Row: {
@@ -494,6 +513,8 @@ export interface Database {
           total_insights: number
           total_credits_consumed: number
           total_revenue_fen: number
+          total_input_tokens: number
+          total_output_tokens: number
           lens_distribution: Record<string, number>
           created_at: string
           updated_at: string
@@ -506,6 +527,8 @@ export interface Database {
           total_insights?: number
           total_credits_consumed?: number
           total_revenue_fen?: number
+          total_input_tokens?: number
+          total_output_tokens?: number
           lens_distribution?: Record<string, number>
           created_at?: string
           updated_at?: string
@@ -518,10 +541,13 @@ export interface Database {
           total_insights?: number
           total_credits_consumed?: number
           total_revenue_fen?: number
+          total_input_tokens?: number
+          total_output_tokens?: number
           lens_distribution?: Record<string, number>
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
     }
     Views: Record<string, never>
@@ -543,6 +569,8 @@ export interface Database {
           active_users: number
           total_insights: number
           total_credits_consumed: number
+          total_input_tokens: number
+          total_output_tokens: number
           lens_distribution: Record<string, number>
         }
       }
@@ -554,6 +582,7 @@ export interface Database {
       }
     }
     Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
 
