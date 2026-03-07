@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Plus, FileText, User, Sparkles, CreditCard } from 'lucide-react'
+import { Home, Plus, FileText, User, Sparkles, CreditCard, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -11,6 +11,7 @@ const navItems = [
   { href: '/', label: '首页', icon: Home },
   { href: '/capture', label: '新建', icon: Plus },
   { href: '/documents', label: '文档', icon: FileText },
+  { href: '/insights', label: '透镜记录', icon: BookOpen },
   { href: '/profile', label: '我的', icon: User },
   { href: '/lenses', label: '透镜管理', icon: Sparkles },
 ]

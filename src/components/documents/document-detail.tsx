@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import type { Document, Insight, LensType } from "@/types";
+import type { Document, LensType } from "@/types";
 import { LensSelector } from "@/components/insights/lens-selector";
 import { InsightResult } from "@/components/insights/insight-result";
 
@@ -11,7 +11,6 @@ interface DocumentDetailProps {
 }
 
 export function DocumentDetail({ document }: DocumentDetailProps) {
-  const [insights, setInsights] = useState<Insight[]>([]);
   const [currentLensType, setCurrentLensType] = useState<string>("");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [completion, setCompletion] = useState("");
@@ -42,7 +41,6 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
         fullText += decoder.decode(value, { stream: true });
         setCompletion(fullText);
       }
-      fetchInsights();
       toast.success("分析完成");
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "";
@@ -57,18 +55,6 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
       setIsLoading(false);
     }
   };
-
-  const fetchInsights = async () => {
-    const res = await fetch(`/api/insights?documentId=${document.id}`);
-    if (res.ok) {
-      const { insights: data } = await res.json();
-      setInsights(data ?? []);
-    }
-  };
-
-  useEffect(() => {
-    fetchInsights();
-  }, [document.id]);
 
   const handleAnalyze = async (lensType: LensType) => {
     setCurrentLensType(lensType);
@@ -111,16 +97,6 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
           streamContent={completion}
           lensType={currentLensType}
         />
-      )}
-
-      {/* 历史分析结果 */}
-      {insights.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-zinc-500">历史分析</h3>
-          {insights.map((insight) => (
-            <InsightResult key={insight.id} insight={insight} />
-          ))}
-        </div>
       )}
     </div>
   );

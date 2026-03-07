@@ -173,7 +173,8 @@ export async function POST(request: NextRequest) {
   });
 }
 
-// GET /api/insights?documentId=xxx — 获取文档历史 insights
+// GET /api/insights — 查询 insights
+// 参数：documentId（单文档）或 page+limit+lensType（全量分页）
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
@@ -183,22 +184,54 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const documentId = searchParams.get("documentId");
 
-  if (!documentId) {
-    return new Response("Missing documentId", { status: 400 });
-  }
-
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  // 单文档模式（原有逻辑，文档详情页使用）
+  if (documentId) {
+    const { data, error } = await supabase
+      .from("insights")
+      .select("*")
+      .eq("document_id", documentId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+
+    return Response.json({ insights: data });
+  }
+
+  // 全量分页模式（透镜记录页使用）
+  const page = parseInt(searchParams.get("page") ?? "1");
+  const limit = parseInt(searchParams.get("limit") ?? "20");
+  const lensType = searchParams.get("lensType") ?? "";
+  const offset = (page - 1) * limit;
+
+  let query = supabase
     .from("insights")
-    .select("*")
-    .eq("document_id", documentId)
+    .select("*, documents(id, title)", { count: "exact" })
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (lensType) {
+    query = query.eq("lens_type", lensType);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ insights: data });
+  return Response.json({
+    insights: data,
+    meta: {
+      total: count ?? 0,
+      page,
+      limit,
+      hasMore: offset + limit < (count ?? 0),
+    },
+  });
 }

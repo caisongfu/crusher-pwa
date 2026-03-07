@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Plus, FileText, User } from 'lucide-react'
+import { Home, Plus, FileText, User, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/', label: '首页', icon: Home },
   { href: '/capture', label: '新建', icon: Plus },
   { href: '/documents', label: '文档', icon: FileText },
+  { href: '/insights', label: '透镜记录', icon: BookOpen },
   { href: '/profile', label: '我的', icon: User },
 ]
 
