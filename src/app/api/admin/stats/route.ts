@@ -2,20 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/supabase/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
-import { statsCache } from '@/lib/cache/redis';
 
-// 请求参数验证
 const StatsQuerySchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });
 
-// 缓存 TTL: 10 分钟（600 秒）
-const CACHE_TTL = 600;
+// 生成日期范围内所有天（YYYY-MM-DD 数组）
+function getDatesInRange(start: string, end: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(start + 'T00:00:00Z');
+  const last = new Date(end + 'T00:00:00Z');
+  while (current <= last) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+}
 
 export async function GET(req: NextRequest) {
   try {
-    // 验证管理员权限
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -32,68 +38,52 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // 解析和验证请求参数
     const { searchParams } = new URL(req.url);
     const params = StatsQuerySchema.parse(Object.fromEntries(searchParams));
 
-    // 如果没有指定日期范围，返回今日统计
-    if (!params.startDate && !params.endDate) {
-      // 使用缓存获取今日统计
-      const cacheKey = `today`;
-      const todayStats = await statsCache.cached(
-        cacheKey,
-        async () => {
-          const { data, error: statsError } = await (supabase as any)
-            .rpc('get_today_stats');
+    const today = new Date().toISOString().split('T')[0];
+    const startDate = params.startDate || today;
+    const endDate = params.endDate || today;
 
-          if (statsError) {
-            console.error('获取今日统计失败:', statsError);
-            throw new Error('获取统计失败');
-          }
+    const allDates = getDatesInRange(startDate, endDate);
 
-          return data;
-        },
-        CACHE_TTL
-      );
-
-      // 格式化返回数据
-      return NextResponse.json({
-        date: new Date().toISOString().split('T')[0],
-        ...todayStats,
-      });
-    }
-
-    // 如果指定了日期范围，从 daily_stats 表查询
-    const startDate = params.startDate || new Date().toISOString().split('T')[0];
-    const endDate = params.endDate || new Date().toISOString().split('T')[0];
-
-    // 使用缓存获取日期范围统计
-    const cacheKey = `range:${startDate}:${endDate}`;
-    const stats = await statsCache.cached(
-      cacheKey,
-      async () => {
-        const { data, error } = await (supabase as any)
-          .from('daily_stats')
-          .select('*')
-          .gte('date', startDate)
-          .lte('date', endDate)
-          .order('date', { ascending: true });
-
-        if (error) {
-          console.error('查询统计数据失败:', error);
-          throw new Error('查询失败');
-        }
-
-        return data || [];
-      },
-      CACHE_TTL
+    // 并行触发每天的统计更新（upsert 到 daily_stats）
+    await Promise.all(
+      allDates.map((date) =>
+        (supabase as any).rpc('update_daily_stats', { p_date: date })
+      )
     );
 
-    return NextResponse.json({
-      stats,
-      startDate,
-      endDate,
+    // 从 daily_stats 读取最新数据
+    const { data, error } = await (supabase as any)
+      .from('daily_stats')
+      .select('date, new_users, orders_count, total_revenue_fen, total_credits_consumed, active_users, total_input_tokens, total_output_tokens')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('查询 daily_stats 失败:', error);
+      throw new Error('查询失败');
+    }
+
+    // 映射为前端期望的字段名，确保每一天都有数据（无记录则补零）
+    const rowMap = new Map((data || []).map((r: any) => [r.date, r]));
+    const stats = allDates.map((date) => {
+      const row: any = rowMap.get(date) ?? {};
+      return {
+        date,
+        new_users: row.new_users ?? 0,
+        orders: row.orders_count ?? 0,
+        revenue: row.total_revenue_fen ?? 0,
+        credits_consumed: row.total_credits_consumed ?? 0,
+        active_users: row.active_users ?? 0,
+        total_input_tokens: row.total_input_tokens ?? 0,
+        total_output_tokens: row.total_output_tokens ?? 0,
+      };
     });
+
+    return NextResponse.json({ stats, startDate, endDate });
   } catch (error) {
     console.error('用量统计 API 错误:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });

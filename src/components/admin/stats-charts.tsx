@@ -17,7 +17,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { TrendingUp, Users, ShoppingCart, Zap, BarChart2, Cpu } from "lucide-react";
+import {
+  TrendingUp,
+  Users,
+  ShoppingCart,
+  Zap,
+  BarChart2,
+  Cpu,
+} from "lucide-react";
 import { formatDateToISO, formatRevenue, formatDateToMD } from "@/lib/format";
 
 interface DailyStats {
@@ -219,7 +226,9 @@ export function StatsCharts() {
               <Cpu className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatTokens(totals.inputTokens)}</div>
+              <div className="text-2xl font-bold">
+                {formatTokens(totals.inputTokens)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 期间共 {formatTokens(totals.inputTokens)} input tokens
               </p>
@@ -232,7 +241,9 @@ export function StatsCharts() {
               <Cpu className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatTokens(totals.outputTokens)}</div>
+              <div className="text-2xl font-bold">
+                {formatTokens(totals.outputTokens)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 期间共生成 {formatTokens(totals.outputTokens)} output tokens
               </p>

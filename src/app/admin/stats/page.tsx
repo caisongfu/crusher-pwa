@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { StatsCharts } from '@/components/admin/stats-charts';
+import { StatsCharts } from "@/components/admin/stats-charts";
 
 export default function AdminStatsPage() {
   return (
