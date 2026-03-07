@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin, isAdminAuthError } from '@/lib/admin/auth';
+import { createAdminClient } from '@/lib/supabase/server';
 import { PAGINATION, ORDER_STATUS } from '@/lib/constants';
 
 // 请求参数验证
@@ -19,18 +20,31 @@ export async function GET(req: NextRequest) {
     const auth = await requireAdmin();
     if (isAdminAuthError(auth)) return auth;
 
-    const supabase = await (await import('@/lib/supabase/server')).createClient();
+    // 使用 admin 客户端绕过 RLS，并可访问 auth.admin API
+    const adminSupabase = createAdminClient();
 
     // 解析和验证请求参数
     const { searchParams } = new URL(req.url);
     const params = ListOrdersSchema.parse(Object.fromEntries(searchParams));
 
-    // 构建查询
-    let query = supabase
+    // 若搜索关键词疑似邮箱，先通过 auth admin API 找到匹配的 user_id
+    let searchUserIds: string[] | null = null;
+    if (params.search) {
+      const { data: usersData } = await adminSupabase.auth.admin.listUsers({ perPage: 1000 });
+      const matched = (usersData?.users || []).filter(
+        (u) => u.email?.toLowerCase().includes(params.search!.toLowerCase())
+      );
+      if (matched.length > 0) {
+        searchUserIds = matched.map((u) => u.id);
+      }
+    }
+
+    // 构建查询（profiles 表不含 email，只取 id/username）
+    let query = adminSupabase
       .from('payment_orders')
       .select(`
         *,
-        profiles:user_id(id, email, username)
+        profiles:user_id(id, username)
       `, { count: 'exact' });
 
     // 筛选状态
@@ -48,9 +62,15 @@ export async function GET(req: NextRequest) {
       query = query.lte('created_at', endDate.toISOString());
     }
 
-    // 搜索订单号或用户邮箱
+    // 搜索：订单号 OR 匹配邮箱的 user_id
     if (params.search) {
-      query = query.or(`out_trade_no.ilike.%${params.search}%,profiles.email.ilike.%${params.search}%`);
+      if (searchUserIds && searchUserIds.length > 0) {
+        query = query.or(
+          `out_trade_no.ilike.%${params.search}%,user_id.in.(${searchUserIds.join(',')})`
+        );
+      } else {
+        query = query.ilike('out_trade_no', `%${params.search}%`);
+      }
     }
 
     // 分页
@@ -66,6 +86,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '查询失败' }, { status: 500 });
     }
 
+    // 收集订单中所有 user_id，批量获取 email
+    const userIds = [...new Set((data || []).map((o: any) => o.user_id))];
+    const { data: usersData } = await adminSupabase.auth.admin.listUsers({ perPage: 1000 });
+    const emailMap = new Map(
+      (usersData?.users || [])
+        .filter((u) => userIds.includes(u.id))
+        .map((u) => [u.id, u.email ?? ''])
+    );
+
     // 格式化响应数据
     const orders = (data || []).map((order: any) => ({
       id: order.id,
@@ -79,7 +108,11 @@ export async function GET(req: NextRequest) {
       payment_method: order.payment_method,
       paid_at: order.paid_at,
       created_at: order.created_at,
-      user: order.profiles,
+      user: {
+        id: order.profiles?.id ?? order.user_id,
+        email: emailMap.get(order.user_id) ?? '',
+        username: order.profiles?.username ?? null,
+      },
     }));
 
     return NextResponse.json({

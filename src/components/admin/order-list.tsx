@@ -110,12 +110,12 @@ export function OrderList() {
           />
         </div>
 
-        <Select value={status} onValueChange={(value) => setStatus(value as OrderStatus | '')}>
+        <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value as OrderStatus)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="全部状态" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">全部状态</SelectItem>
+            <SelectItem value="all">全部状态</SelectItem>
             <SelectItem value={ORDER_STATUS.PENDING}>{ORDER_STATUS_LABELS[ORDER_STATUS.PENDING]}</SelectItem>
             <SelectItem value={ORDER_STATUS.PAID}>{ORDER_STATUS_LABELS[ORDER_STATUS.PAID]}</SelectItem>
             <SelectItem value={ORDER_STATUS.FAILED}>{ORDER_STATUS_LABELS[ORDER_STATUS.FAILED]}</SelectItem>
