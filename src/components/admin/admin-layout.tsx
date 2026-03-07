@@ -4,11 +4,9 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard,
   Users,
   CreditCard,
   BarChart3,
-  Settings,
   LogOut,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -20,7 +18,6 @@ const navigation = [
   { name: '用户管理', href: '/admin', icon: Users },
   { name: '订单管理', href: '/admin/orders', icon: CreditCard },
   { name: '用量统计', href: '/admin/stats', icon: BarChart3 },
-  { name: '系统设置', href: '/admin/settings', icon: Settings },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
