@@ -1,19 +1,21 @@
 'use client'
 
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { MoreVertical } from 'lucide-react'
+import { Check, Copy, MoreVertical } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { FeedbackDialog } from '@/components/feedback-dialog'
+import { markdownToPlainText } from '@/lib/utils'
 import type { Insight } from '@/types'
 
 const LENS_META: Record<string, { icon: string; name: string }> = {
@@ -40,10 +42,24 @@ export function InsightResult({
   streamContent,
   lensType,
 }: InsightResultProps) {
+  const [copiedMode, setCopiedMode] = useState<'md' | 'txt' | null>(null)
+
   const type = insight?.lens_type ?? lensType ?? 'custom'
   const meta = LENS_META[type] ?? { icon: '🔧', name: '分析结果' }
   const content = insight?.result ?? streamContent ?? ''
   const creditsCost = insight?.credits_cost
+
+  const handleCopy = async (mode: 'md' | 'txt') => {
+    const text = mode === 'md' ? content : markdownToPlainText(content)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedMode(mode)
+      toast.success('已复制到剪贴板')
+      setTimeout(() => setCopiedMode(null), 2000)
+    } catch {
+      toast.error('复制失败，请手动选中文字复制')
+    }
+  }
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
@@ -62,6 +78,24 @@ export function InsightResult({
               {format(new Date(insight.created_at), 'MM-dd HH:mm', { locale: zhCN })}
             </span>
           )}
+          {/* 复制按钮组 */}
+          <div className="flex items-center gap-1">
+            {(['md', 'txt'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleCopy(mode)}
+                disabled={isStreaming || !content}
+                className="h-8 px-2 flex items-center gap-1 text-xs rounded transition-colors hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-500 hover:text-zinc-700"
+              >
+                {copiedMode === mode ? (
+                  <Check className="h-3.5 w-3.5 text-green-500" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                <span>{copiedMode === mode ? '已复制' : `复制${mode}`}</span>
+              </button>
+            ))}
+          </div>
           {/* 更多操作菜单 */}
           {insight && (
             <DropdownMenu>

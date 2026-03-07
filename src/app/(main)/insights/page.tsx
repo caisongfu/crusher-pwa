@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Copy, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import ReactMarkdown from 'react-markdown'
+
+import { markdownToPlainText } from '@/lib/utils'
 
 // 透镜类型中文映射
 const LENS_LABELS: Record<string, string> = {
@@ -37,6 +40,20 @@ export default function InsightsPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [copiedState, setCopiedState] = useState<{ id: string; mode: 'md' | 'txt' } | null>(null)
+
+  const handleCopy = async (e: React.MouseEvent, insight: InsightWithDoc, mode: 'md' | 'txt') => {
+    e.stopPropagation()
+    const text = mode === 'md' ? insight.result : markdownToPlainText(insight.result)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedState({ id: insight.id, mode })
+      toast.success('已复制到剪贴板')
+      setTimeout(() => setCopiedState(null), 2000)
+    } catch {
+      toast.error('复制失败，请手动选中文字复制')
+    }
+  }
 
   const fetchInsights = useCallback(async (pageNum: number, lens: string, replace: boolean) => {
     setIsLoading(true)
@@ -132,8 +149,27 @@ export default function InsightsPage() {
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-zinc-100">
-                    <div className="prose prose-sm max-w-none prose-zinc pt-3">
+                  <div className="border-t border-zinc-100">
+                    <div className="flex justify-end gap-1 px-4 pt-2">
+                      {(['md', 'txt'] as const).map((mode) => {
+                        const isCopied = copiedState?.id === insight.id && copiedState.mode === mode
+                        return (
+                          <button
+                            key={mode}
+                            onClick={(e) => handleCopy(e, insight, mode)}
+                            className="h-7 px-2 flex items-center gap-1 text-xs rounded transition-colors hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600"
+                          >
+                            {isCopied ? (
+                              <Check className="h-3.5 w-3.5 text-green-500" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                            <span>{isCopied ? '已复制' : `复制${mode}`}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="px-4 pb-4 prose prose-sm max-w-none prose-zinc">
                       <ReactMarkdown>{insight.result}</ReactMarkdown>
                     </div>
                   </div>
