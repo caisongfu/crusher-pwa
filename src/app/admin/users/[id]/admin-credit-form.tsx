@@ -31,6 +31,11 @@ export function AdminCreditForm({ userId, currentBalance }: AdminCreditFormProps
       return
     }
 
+    if (type === 'deduct' && numAmount > currentBalance) {
+      toast.error(`积分不足，当前余额 ${currentBalance}，最多可扣 ${currentBalance}`)
+      return
+    }
+
     const finalAmount = type === 'deduct' ? -numAmount : numAmount
 
     setLoading(true)
@@ -38,7 +43,12 @@ export function AdminCreditForm({ userId, currentBalance }: AdminCreditFormProps
       const res = await fetch('/api/admin/credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, amount: finalAmount, description: description.trim() }),
+        body: JSON.stringify({
+          userId,
+          amount: finalAmount,
+          type: type === 'grant' ? 'manual_grant' : 'admin_deduct',
+          description: description.trim(),
+        }),
       })
       const data = await res.json()
 
