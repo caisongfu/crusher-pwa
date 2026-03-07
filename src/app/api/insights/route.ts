@@ -147,39 +147,45 @@ export async function POST(request: NextRequest) {
           const content = chunk.choices[0]?.delta?.content ?? "";
           if (content) {
             fullText += content;
-            controller.enqueue(encoder.encode(content));
+            // 客户端断开时 enqueue 会抛异常，捕获后继续从 DeepSeek 收数据
+            try {
+              controller.enqueue(encoder.encode(content));
+            } catch {
+              // 客户端已断开，继续积累 fullText 直到 DeepSeek 流结束
+            }
           }
           if (chunk.usage) {
             inputTokens = chunk.usage.prompt_tokens;
             outputTokens = chunk.usage.completion_tokens;
           }
         }
-
-        // 流结束后保存 insight 记录
-        const insertData: InsightRow = {
-          document_id: primaryDocId,
-          document_ids: docIds.length > 1 ? docIds : null,  // 多文档时填充数组
-          user_id: user.id,
-          lens_type: lensType,
-          custom_lens_id: customLensId ?? null,
-          result: fullText,
-          model: DEEPSEEK_MODEL,
-          prompt_version: promptVersion,
-          input_chars: totalCharCount,
-          input_tokens: inputTokens,
-          output_tokens: outputTokens,
-          credits_cost: creditCost,
-        };
-
-        const { error: insertError } = await supabase
-          .from("insights")
-          .insert(insertData as any);
-
-        if (insertError) {
-          console.error("Failed to insert insight:", insertError);
-        }
+      } catch (e) {
+        console.error("DeepSeek stream error:", e);
       } finally {
-        controller.close();
+        // 无论前端是否断开，只要有内容就保存 insight 记录
+        if (fullText.trim()) {
+          const insertData: InsightRow = {
+            document_id: primaryDocId,
+            document_ids: docIds.length > 1 ? docIds : null,
+            user_id: user.id,
+            lens_type: lensType,
+            custom_lens_id: customLensId ?? null,
+            result: fullText,
+            model: DEEPSEEK_MODEL,
+            prompt_version: promptVersion,
+            input_chars: totalCharCount,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            credits_cost: creditCost,
+          };
+          const { error: insertError } = await supabase
+            .from("insights")
+            .insert(insertData as any);
+          if (insertError) {
+            console.error("Failed to insert insight:", insertError);
+          }
+        }
+        try { controller.close(); } catch { /* already closed */ }
       }
     },
   });
