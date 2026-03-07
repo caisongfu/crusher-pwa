@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDebounce } from '@/hooks/use-debounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -35,6 +34,18 @@ interface CreditTransaction {
   created_at: string;
 }
 
+interface PendingTransaction {
+  id: string;
+  amount: number;
+  type: 'manual_grant' | 'admin_deduct';
+  description: string;
+  requested_by: string;
+  requested_by_email: string;
+  requested_by_username: string | null;
+  can_approve: boolean;
+  created_at: string;
+}
+
 interface UserDetailProps {
   userId: string;
   onBack: () => void;
@@ -43,6 +54,7 @@ interface UserDetailProps {
 export function UserDetail({ userId, onBack }: UserDetailProps) {
   const [user, setUser] = useState<User | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [pendingTransactions, setPendingTransactions] = useState<PendingTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 积分操作表单
@@ -50,10 +62,15 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
   const [creditDescription, setCreditDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // 加载用户详情
+  // 审批操作状态
+  const [approving, setApproving] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
   useEffect(() => {
     loadUserDetail();
     loadCreditTransactions();
+    loadPendingTransactions();
   }, [userId]);
 
   const loadUserDetail = async () => {
@@ -90,7 +107,19 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
     }
   };
 
-  // 创建积分操作
+  const loadPendingTransactions = async () => {
+    try {
+      const response = await fetch(`/api/admin/credits/pending?userId=${userId}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setPendingTransactions(data.transactions || []);
+      }
+    } catch (error) {
+      console.error('加载待审批记录失败:', error);
+    }
+  };
+
   const handleCreateCreditOperation = async (type: 'manual_grant' | 'admin_deduct') => {
     const amount = parseInt(creditAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -119,11 +148,10 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('积分操作已提交，等待其他管理员审批');
+        toast.success('积分操作已提交，等待其他管理员审批后生效');
         setCreditAmount('');
         setCreditDescription('');
-        loadUserDetail();
-        loadCreditTransactions();
+        loadPendingTransactions();
       } else {
         toast.error(data.error || '提交失败');
       }
@@ -132,6 +160,69 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
       toast.error('提交积分操作失败');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleApprove = async (transactionId: string) => {
+    setApproving(transactionId);
+    try {
+      const response = await fetch('/api/admin/credits/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId, action: 'approve' }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('审批通过，积分已生效');
+        loadUserDetail();
+        loadCreditTransactions();
+        loadPendingTransactions();
+      } else {
+        toast.error(data.error || '审批失败');
+      }
+    } catch (error) {
+      console.error('审批失败:', error);
+      toast.error('审批失败');
+    } finally {
+      setApproving(null);
+    }
+  };
+
+  const handleReject = async (transactionId: string) => {
+    if (!rejectionReason.trim()) {
+      toast.error('请填写拒绝原因');
+      return;
+    }
+
+    setApproving(transactionId);
+    try {
+      const response = await fetch('/api/admin/credits/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId,
+          action: 'reject',
+          rejectionReason,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('已拒绝该积分操作');
+        setRejectingId(null);
+        setRejectionReason('');
+        loadPendingTransactions();
+      } else {
+        toast.error(data.error || '操作失败');
+      }
+    } catch (error) {
+      console.error('拒绝失败:', error);
+      toast.error('操作失败');
+    } finally {
+      setApproving(null);
     }
   };
 
@@ -164,12 +255,10 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
             </div>
             <div>
               <dt className="text-sm text-gray-500">用户名</dt>
-              <dd className="text-lg font-medium">
-                {user.username || '-'}
-              </dd>
+              <dd className="text-lg font-medium">{user.username || '-'}</dd>
             </div>
             <div>
-              <dt className="text-sm text-gray-500">当前积分</dt>
+              <dt className="text-sm text-gray-500">当前积分（已审批生效）</dt>
               <dd className="text-lg font-medium">{user.credits}</dd>
             </div>
             <div>
@@ -195,14 +284,12 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
       {/* 积分操作表单 */}
       <Card>
         <CardHeader>
-          <CardTitle>积分操作（需要第二管理员审批）</CardTitle>
+          <CardTitle>积分操作（需要第二管理员审批后生效）</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">
-                积分数额
-              </label>
+              <label className="block text-sm font-medium mb-2">积分数额</label>
               <Input
                 type="number"
                 placeholder="请输入积分数额"
@@ -212,9 +299,7 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">
-                备注（必填）
-              </label>
+              <label className="block text-sm font-medium mb-2">备注（必填）</label>
               <Textarea
                 placeholder="请填写操作原因..."
                 value={creditDescription}
@@ -241,10 +326,110 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
         </CardContent>
       </Card>
 
-      {/* 积分流水 */}
+      {/* 待审批积分操作 */}
+      {pendingTransactions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-yellow-500" />
+              待审批积分操作（{pendingTransactions.length}）
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pendingTransactions.map((tx) => (
+              <div key={tx.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={
+                          tx.amount > 0
+                            ? 'font-medium text-green-600'
+                            : 'font-medium text-red-600'
+                        }
+                      >
+                        {tx.amount > 0 ? '+' : ''}
+                        {tx.amount} 积分
+                      </span>
+                      <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
+                        {tx.type === 'manual_grant' ? '手动充值' : '管理员扣减'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">{tx.description}</p>
+                    <p className="text-xs text-gray-400">
+                      发起人：{tx.requested_by_username || tx.requested_by_email} ·{' '}
+                      {new Date(tx.created_at).toLocaleString('zh-CN')}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {tx.can_approve ? (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove(tx.id)}
+                          disabled={approving === tx.id}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          通过
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setRejectingId(rejectingId === tx.id ? null : tx.id)
+                          }
+                          disabled={approving === tx.id}
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          拒绝
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">等待其他管理员审批</span>
+                    )}
+                  </div>
+                </div>
+                {/* 拒绝原因输入区 */}
+                {rejectingId === tx.id && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <Textarea
+                      placeholder="请填写拒绝原因..."
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      rows={2}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(tx.id)}
+                        disabled={approving === tx.id}
+                      >
+                        确认拒绝
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setRejectingId(null);
+                          setRejectionReason('');
+                        }}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 积分流水（已生效记录） */}
       <Card>
         <CardHeader>
-          <CardTitle>积分流水</CardTitle>
+          <CardTitle>积分流水（已审批生效）</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -272,9 +457,7 @@ export function UserDetail({ userId, onBack }: UserDetailProps) {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={
-                          tx.amount > 0 ? 'text-green-600' : 'text-red-600'
-                        }
+                        className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}
                       >
                         {tx.type === 'payment' && '充值'}
                         {tx.type === 'consumed' && '消费'}

@@ -47,7 +47,12 @@ export async function GET(
       return NextResponse.json({ error: "用户不存在" }, { status: 404 });
     }
 
-    return NextResponse.json({ user: data });
+    // 从 auth.users 获取邮箱
+    const adminSupabase = createAdminClient();
+    const { data: authUser } = await adminSupabase.auth.admin.getUserById(id);
+    const email = authUser?.user?.email ?? null;
+
+    return NextResponse.json({ user: { ...data, email } });
   } catch (error) {
     console.error("查询用户详情失败:", error);
     return NextResponse.json({ error: "服务器错误" }, { status: 500 });
