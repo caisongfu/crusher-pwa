@@ -7,8 +7,19 @@ import { PlusCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DocumentCard } from './document-card'
 import { useDocumentsStore } from '@/store'
+import type { Document } from '@/types'
 
-export function DocumentsList() {
+interface DocumentsListProps {
+  multiSelectMode?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (doc: Document) => void
+}
+
+export function DocumentsList({
+  multiSelectMode = false,
+  selectedIds = new Set(),
+  onToggleSelect,
+}: DocumentsListProps) {
   const { documents, total, isLoading, setDocuments } = useDocumentsStore()
 
   useEffect(() => {
@@ -59,7 +70,22 @@ export function DocumentsList() {
   return (
     <div className="space-y-3">
       {documents.map((doc) => (
-        <DocumentCard key={doc.id} document={doc} />
+        <div key={doc.id} className="relative">
+          {multiSelectMode && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
+              <input
+                type="checkbox"
+                checked={selectedIds.has(doc.id)}
+                onChange={() => onToggleSelect?.(doc)}
+                className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 cursor-pointer"
+                aria-label={`选择文档 ${doc.title ?? doc.raw_content.slice(0, 20)}`}
+              />
+            </div>
+          )}
+          <div className={multiSelectMode ? 'pl-9' : ''}>
+            <DocumentCard document={doc} disableLink={multiSelectMode} onCardClick={multiSelectMode ? () => onToggleSelect?.(doc) : undefined} />
+          </div>
+        </div>
       ))}
       {total > documents.length && (
         <p className="text-center text-xs text-zinc-400 py-4">

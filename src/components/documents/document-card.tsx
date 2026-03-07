@@ -25,9 +25,11 @@ import type { Document } from '@/types'
 
 interface DocumentCardProps {
   document: Document
+  disableLink?: boolean
+  onCardClick?: () => void
 }
 
-export function DocumentCard({ document }: DocumentCardProps) {
+export function DocumentCard({ document, disableLink = false, onCardClick }: DocumentCardProps) {
   const removeDocument = useDocumentsStore((s) => s.removeDocument)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -64,22 +66,45 @@ export function DocumentCard({ document }: DocumentCardProps) {
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="pt-4 pb-4">
         <div className="flex items-start justify-between gap-3">
-          <Link href={`/documents/${document.id}`} className="flex-1 min-w-0 space-y-1 group">
-            <div className="flex items-center gap-2">
-              {document.source_type === 'voice' ? (
-                <Mic className="h-4 w-4 text-zinc-400 shrink-0" />
-              ) : (
-                <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
-              )}
-              <h3 className="font-medium text-sm line-clamp-1 group-hover:underline">
-                {displayTitle}
-              </h3>
-            </div>
-            <p className="text-xs text-zinc-500 line-clamp-2">
-              {preview}{hasMore && '…'}
-            </p>
-            <p className="text-xs text-zinc-400">{timeAgo}</p>
-          </Link>
+          {disableLink ? (
+            <button
+              type="button"
+              onClick={onCardClick}
+              className="flex-1 min-w-0 space-y-1 text-left"
+            >
+              <div className="flex items-center gap-2">
+                {document.source_type === 'voice' ? (
+                  <Mic className="h-4 w-4 text-zinc-400 shrink-0" />
+                ) : (
+                  <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
+                )}
+                <h3 className="font-medium text-sm line-clamp-1">
+                  {displayTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-500 line-clamp-2">
+                {preview}{hasMore && '…'}
+              </p>
+              <p className="text-xs text-zinc-400">{timeAgo}</p>
+            </button>
+          ) : (
+            <Link href={`/documents/${document.id}`} className="flex-1 min-w-0 space-y-1 group">
+              <div className="flex items-center gap-2">
+                {document.source_type === 'voice' ? (
+                  <Mic className="h-4 w-4 text-zinc-400 shrink-0" />
+                ) : (
+                  <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
+                )}
+                <h3 className="font-medium text-sm line-clamp-1 group-hover:underline">
+                  {displayTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-500 line-clamp-2">
+                {preview}{hasMore && '…'}
+              </p>
+              <p className="text-xs text-zinc-400">{timeAgo}</p>
+            </Link>
+          )}
 
           <AlertDialog>
             <AlertDialogTrigger asChild>

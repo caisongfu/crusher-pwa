@@ -60,6 +60,7 @@ export interface CustomLens {
 export interface Insight {
   id: string
   document_id: string
+  document_ids: string[] | null   // 多文档分析时的文档 ID 数组
   user_id: string
   lens_type: LensType
   custom_lens_id: string | null

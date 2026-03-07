@@ -11,7 +11,8 @@ import { calculateCreditCost } from "@/types";
 import type { LensType } from "@/types";
 
 const InsightRequestSchema = z.object({
-  documentId: z.string().uuid(),
+  documentId: z.string().uuid().optional(),   // 单文档（向后兼容）
+  documentIds: z.array(z.string().uuid()).min(1).max(10).optional(),  // 多文档
   lensType: z.enum([
     "requirements",
     "meeting",
@@ -23,9 +24,11 @@ const InsightRequestSchema = z.object({
     "custom",
   ]),
   customLensId: z.string().uuid().optional(),
-});
+}).refine(
+  (data) => data.documentId || (data.documentIds && data.documentIds.length > 0),
+  { message: "documentId 或 documentIds 必须提供其一" }
+);
 
-type DocRow = Database["public"]["Tables"]["documents"]["Row"];
 type InsightRow = Database["public"]["Tables"]["insights"]["Insert"];
 
 // POST /api/insights — 流式 AI 分析
@@ -71,25 +74,37 @@ export async function POST(request: NextRequest) {
     return new Response(parsed.error.message, { status: 400 });
   }
 
-  const { documentId, lensType, customLensId } = parsed.data;
+  const { documentId, documentIds, lensType, customLensId } = parsed.data;
 
-  // 获取文档并验证归属
-  const { data: doc, error: docError } = (await supabase
+  // 解析文档 ID 列表（兼容单文档和多文档）
+  const docIds = documentIds ?? (documentId ? [documentId] : []);
+  const primaryDocId = documentId ?? docIds[0];
+
+  // 批量获取文档并验证归属
+  const { data: docs, error: docError } = (await supabase
     .from("documents")
-    .select("id, raw_content, char_count, user_id")
-    .eq("id", documentId)
+    .select("id, title, raw_content, char_count, user_id")
+    .in("id", docIds)
     .eq("user_id", user.id)
-    .eq("is_deleted", false)
-    .single()) as any;
+    .eq("is_deleted", false)) as any;
 
-  if (docError || !doc) {
+  if (docError || !docs || docs.length === 0) {
     return new Response("Document not found", { status: 404 });
   }
 
-  const typedDoc = doc as DocRow;
+  if (docs.length !== docIds.length) {
+    return new Response("部分文档不存在或无权访问", { status: 403 });
+  }
+
+  // 拼接多文档内容
+  const combinedContent = docs
+    .map((doc: any) => `--- 文档：${doc.title ?? '未命名'} ---\n${doc.raw_content}`)
+    .join("\n\n");
+
+  const totalCharCount = docs.reduce((sum: number, doc: any) => sum + (doc.char_count ?? 0), 0);
 
   // 计算积分费用
-  const creditCost = calculateCreditCost(typedDoc.char_count);
+  const creditCost = calculateCreditCost(totalCharCount);
 
   // 预先扣减积分（流式输出前扣减，防止滥用）
   const deductResult = await deductCredits(
@@ -105,7 +120,7 @@ export async function POST(request: NextRequest) {
   // 解析 prompt
   const { system, userPrompt, promptVersion } = await resolvePrompt(
     lensType as LensType,
-    typedDoc.raw_content,
+    combinedContent,         // 使用拼接内容
     customLensId
   );
 
@@ -142,14 +157,15 @@ export async function POST(request: NextRequest) {
 
         // 流结束后保存 insight 记录
         const insertData: InsightRow = {
-          document_id: documentId,
+          document_id: primaryDocId,
+          document_ids: docIds.length > 1 ? docIds : null,  // 多文档时填充数组
           user_id: user.id,
           lens_type: lensType,
           custom_lens_id: customLensId ?? null,
           result: fullText,
           model: DEEPSEEK_MODEL,
           prompt_version: promptVersion,
-          input_chars: typedDoc.char_count,
+          input_chars: totalCharCount,
           input_tokens: inputTokens,
           output_tokens: outputTokens,
           credits_cost: creditCost,
