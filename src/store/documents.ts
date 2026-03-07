@@ -9,6 +9,7 @@ interface DocumentsStore {
   setDocuments: (docs: Document[], total: number) => void
   prependDocument: (doc: Document) => void
   removeDocument: (id: string) => void
+  reset: () => void
 }
 
 export const useDocumentsStore = create<DocumentsStore>((set) => ({
@@ -26,4 +27,5 @@ export const useDocumentsStore = create<DocumentsStore>((set) => ({
       documents: state.documents.filter((d) => d.id !== id),
       total: state.total - 1,
     })),
+  reset: () => set({ documents: [], total: 0, isLoading: false }),
 }))

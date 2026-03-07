@@ -151,15 +151,31 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Admin 路由：额外验证角色
-  if (pathname.startsWith("/admin")) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", currentUser.id)
-      .single();
+  // 检查用户是否被禁止登录
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("disable_type, role")
+    .eq("id", currentUser.id)
+    .single();
 
-    if (profile?.role !== "admin") {
+  if (userProfile?.disable_type === "login_disabled") {
+    await supabase.auth.signOut();
+    const redirectResponse = NextResponse.redirect(
+      new URL("/login?error=account_disabled", request.url)
+    );
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    redirectResponse.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate"
+    );
+    return redirectResponse;
+  }
+
+  // Admin 路由：额外验证角色（复用上面已查到的 userProfile）
+  if (pathname.startsWith("/admin")) {
+    if (userProfile?.role !== "admin") {
       const redirectResponse = NextResponse.redirect(new URL("/", request.url));
       supabaseResponse.cookies.getAll().forEach((cookie) => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie);

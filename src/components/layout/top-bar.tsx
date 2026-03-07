@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useAuthStore } from '@/store'
+import { useAuthStore, useDocumentsStore, useInsightsStore } from '@/store'
 import type { Profile } from '@/types'
 
 interface TopBarProps {
@@ -31,6 +31,10 @@ export function TopBar({ profile }: TopBarProps) {
   const setCredits = useAuthStore((s) => s.setCredits)
   const initialize = useAuthStore((s) => s.initialize)
 
+  const resetAuth = useAuthStore((s) => s.reset)
+  const resetDocuments = useDocumentsStore((s) => s.reset)
+  const resetInsights = useInsightsStore((s) => s.reset)
+
   // 同步服务器端的profile数据到客户端store
   useEffect(() => {
     setProfile(profile)
@@ -40,10 +44,12 @@ export function TopBar({ profile }: TopBarProps) {
 
   async function handleLogout() {
     const supabase = createClient()
+    resetAuth()
+    resetDocuments()
+    resetInsights()
     await supabase.auth.signOut()
     toast.success('已退出登录')
     router.push('/login')
-    router.refresh()
   }
 
   return (

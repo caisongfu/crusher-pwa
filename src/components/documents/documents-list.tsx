@@ -23,14 +23,12 @@ export function DocumentsList({
   const { documents, total, isLoading, setDocuments } = useDocumentsStore()
 
   useEffect(() => {
-    if (documents.length === 0 && !isLoading) {
-      fetchDocuments()
-    }
+    fetchDocuments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function fetchDocuments() {
-    useDocumentsStore.setState({ isLoading: true })
+    useDocumentsStore.setState({ isLoading: true, documents: [], total: 0 })
     try {
       const response = await fetch('/api/documents?page=1&limit=20')
       const result = await response.json()

@@ -6,6 +6,7 @@ interface InsightsStore {
   isLoading: boolean
   setInsights: (insights: Insight[]) => void
   prependInsight: (insight: Insight) => void
+  reset: () => void
 }
 
 export const useInsightsStore = create<InsightsStore>((set) => ({
@@ -14,4 +15,5 @@ export const useInsightsStore = create<InsightsStore>((set) => ({
   setInsights: (insights) => set({ insights }),
   prependInsight: (insight) =>
     set((state) => ({ insights: [insight, ...state.insights] })),
+  reset: () => set({ insights: [], isLoading: false }),
 }))

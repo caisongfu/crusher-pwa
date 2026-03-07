@@ -2,12 +2,14 @@
 // 用户 & Profile
 // =============================================
 export type UserRole = 'user' | 'admin'
+export type DisableType = 'normal' | 'login_disabled' | 'usage_disabled'
 
 export interface Profile {
   id: string               // 同 auth.users.id
   username: string | null
   role: UserRole
   credits: number
+  disable_type: DisableType
   created_at: string
   updated_at: string
 }
@@ -210,8 +212,8 @@ export interface DailyStats {
 export function calculateCreditCost(charCount: number): number {
   if (charCount <= 3000) return 10
   if (charCount <= 6000) return 15
-  if (charCount <= 10000) return 22
-  return 22 + Math.ceil((charCount - 10000) / 1000) * 5
+  if (charCount <= 10000) return 30
+  return 30 + Math.ceil((charCount - 10000) / 1000) * 5
 }
 
 // =============================================

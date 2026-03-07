@@ -50,11 +50,23 @@ export default function LoginPage() {
 
       // 验证 session 是否成功建立
       if (data?.session) {
+        // 检查账号是否被禁止登录
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("disable_type")
+          .eq("id", data.user.id)
+          .single();
+
+        if (profile?.disable_type === "login_disabled") {
+          await supabase.auth.signOut();
+          toast.error("账号已被禁止登录，请联系管理员");
+          setLoading(false);
+          return;
+        }
+
         toast.success("登录成功");
-        // 使用 router.replace 替代 window.location
         await new Promise((resolve) => setTimeout(resolve, 100));
         router.replace("/");
-        // router.refresh();
       } else {
         toast.error("登录失败：未建立会话");
         setLoading(false);
