@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const { userId, amount, type, description } = parsed.data;
 
-    // 3. 读取目标用户当前余额
+    // 3. 验证目标用户存在
     const { data: targetProfile, error: profileError } = await adminSupabase
       .from('profiles')
       .select('id, credits')
@@ -49,44 +49,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
 
-    // 4. 计算新余额
-    const newBalance = targetProfile.credits + amount;
-    if (newBalance < 0) {
+    // 4. 扣减时做预检（避免提交明显无法生效的请求）
+    if (amount < 0 && targetProfile.credits + amount < 0) {
       return NextResponse.json(
         { error: `积分不足，当前余额 ${targetProfile.credits}，无法扣减 ${Math.abs(amount)}` },
         { status: 400 }
       );
     }
 
-    // 5. 更新 profiles.credits
-    const { error: updateError } = await adminSupabase
-      .from('profiles')
-      .update({ credits: newBalance })
-      .eq('id', userId);
-
-    if (updateError) {
-      console.error('更新积分失败:', updateError);
-      return NextResponse.json({ error: '更新积分失败' }, { status: 500 });
-    }
-
-    // 6. 写入积分流水记录
-    const { error: txError } = await adminSupabase
-      .from('credit_transactions')
+    // 5. 写入待审批表（不更新 profiles.credits，不写 credit_transactions）
+    const { data: pendingTx, error: pendingError } = await (adminSupabase as any)
+      .from('pending_credit_transactions')
       .insert({
         user_id: userId,
         amount,
-        balance_after: newBalance,
         type,
         description,
-        operated_by: user.id,
-      });
+        requested_by: user.id,
+        status: 'pending',
+      })
+      .select()
+      .single();
 
-    if (txError) {
-      console.error('写入积分记录失败:', txError);
-      // 不回滚（简化实现），但记录错误
+    if (pendingError) {
+      console.error('写入待审批记录失败:', pendingError);
+      return NextResponse.json({ error: '提交失败' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, newBalance });
+    return NextResponse.json({ success: true, pendingId: pendingTx.id });
   } catch (error) {
     console.error('积分调整 API 错误:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });

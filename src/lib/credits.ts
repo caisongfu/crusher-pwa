@@ -14,7 +14,6 @@ export async function deductCredits(
 ): Promise<DeductResult> {
   const supabase = await createClient()
 
-  // @ts-expect-error - Supabase RPC type inference issue
   const result = await supabase.rpc('deduct_credits', {
     p_user_id: userId,
     p_cost: cost,

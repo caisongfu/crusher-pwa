@@ -41,9 +41,9 @@ export async function GET(req: NextRequest) {
       .from('profiles')
       .select('*', { count: 'exact' });
 
-    // 搜索
+    // 搜索（支持 email 和 username）
     if (params.search) {
-      query = query.ilike('username', `%${params.search}%`);
+      query = query.or(`username.ilike.%${params.search}%,email.ilike.%${params.search}%`);
     }
 
     // 筛选状态

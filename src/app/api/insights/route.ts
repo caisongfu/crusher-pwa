@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
     .range(offset, offset + limit - 1);
 
   if (lensType) {
-    query = query.eq("lens_type", lensType);
+    query = query.eq("lens_type", lensType as 'requirements' | 'meeting' | 'review' | 'risk' | 'change' | 'postmortem' | 'tech' | 'custom');
   }
 
   const { data, error, count } = await query;

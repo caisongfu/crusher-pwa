@@ -1,16 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserList } from '@/components/admin/user-list';
 
 export default function AdminPage() {
   const router = useRouter();
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const handleSelectUser = (userId: string) => {
-    setSelectedUserId(userId);
-    router.push(`/admin/users?id=${userId}`);
+    router.push(`/admin/users/${userId}`);
   };
 
   return (

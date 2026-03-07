@@ -21,8 +21,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // 查询待审批列表（不包括自己发起的）
-    const { data: transactions, error } = await (supabase as any)
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
+    let query = (supabase as any)
       .from('pending_credit_transactions')
       .select(`
         *,
@@ -30,15 +32,23 @@ export async function GET(req: NextRequest) {
         user_profile:profiles!user_id(id, email, username)
       `)
       .eq('status', 'pending')
-      .neq('requested_by', user.id)
       .order('created_at', { ascending: false });
+
+    if (userId) {
+      // 用户详情模式：返回该用户所有待审批记录（含自己发起的）
+      query = query.eq('user_id', userId);
+    } else {
+      // 管理员首页模式：不显示当前管理员自己发起的
+      query = query.neq('requested_by', user.id);
+    }
+
+    const { data: transactions, error } = await query;
 
     if (error) {
       console.error('查询待审批列表失败:', error);
       return NextResponse.json({ error: '查询失败' }, { status: 500 });
     }
 
-    // 格式化返回数据
     const formattedTransactions = (transactions || []).map((tx: any) => ({
       id: tx.id,
       user_id: tx.user_id,
@@ -50,12 +60,12 @@ export async function GET(req: NextRequest) {
       requested_by: tx.requested_by,
       requested_by_email: tx.requested_by_profile?.email,
       requested_by_username: tx.requested_by_profile?.username,
+      // 非本人发起的可以审批
+      can_approve: tx.requested_by !== user.id,
       created_at: tx.created_at,
     }));
 
-    return NextResponse.json({
-      transactions: formattedTransactions,
-    });
+    return NextResponse.json({ transactions: formattedTransactions });
   } catch (error) {
     console.error('待审批列表 API 错误:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });

@@ -33,11 +33,11 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (type && ['payment', 'bug', 'feature', 'other'].includes(type)) {
-      query = query.eq('type', type)
+      query = query.eq('type', type as 'payment' | 'bug' | 'feature' | 'other')
     }
 
     if (status && ['pending', 'processing', 'resolved', 'closed'].includes(status)) {
-      query = query.eq('status', status)
+      query = query.eq('status', status as 'pending' | 'processing' | 'resolved' | 'closed')
     }
 
     const { data: feedbacks, error } = await query

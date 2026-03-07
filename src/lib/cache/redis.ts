@@ -62,13 +62,13 @@ export async function get<T = any>(
 
   try {
     const cacheKey = getCacheKey(key, options?.namespace);
-    const value = await redis.get<string>(cacheKey);
+    const value = await redis.get<T>(cacheKey);
 
-    if (!value) {
+    if (value === null || value === undefined) {
       return null;
     }
 
-    return JSON.parse(value);
+    return value;
   } catch (error) {
     console.error("Redis get error:", error);
     return null;
@@ -93,12 +93,11 @@ export async function set(
 
   try {
     const cacheKey = getCacheKey(key, options?.namespace);
-    const serialized = JSON.stringify(value);
 
     if (options?.ttl) {
-      await redis.set(cacheKey, serialized, { ex: options.ttl });
+      await redis.set(cacheKey, value, { ex: options.ttl });
     } else {
-      await redis.set(cacheKey, serialized);
+      await redis.set(cacheKey, value);
     }
   } catch (error) {
     console.error("Redis set error:", error);
