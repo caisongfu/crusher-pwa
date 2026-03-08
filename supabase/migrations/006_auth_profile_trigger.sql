@@ -3,6 +3,7 @@
 -- =============================================
 
 -- 创建自动创建 profile 的函数
+-- 注意：初始积分逻辑已在 20260308_fix_initial_credits.sql 中更新为 100
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
