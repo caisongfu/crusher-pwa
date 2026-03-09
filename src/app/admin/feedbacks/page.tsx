@@ -1,148 +1,174 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { toast } from 'sonner'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { formatDistanceToNow } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
-import type { Feedback, FeedbackType, FeedbackStatus } from '@/types'
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import type { Feedback, FeedbackType, FeedbackStatus } from "@/types";
 
 const TYPE_LABELS: Record<FeedbackType, string> = {
-  payment: '支付相关',
-  bug: 'Bug 反馈',
-  feature: '功能建议',
-  other: '其他',
-}
+  payment: "支付相关",
+  bug: "Bug 反馈",
+  feature: "功能建议",
+  other: "其他",
+};
 
 const STATUS_LABELS: Record<FeedbackStatus, string> = {
-  pending: '待处理',
-  processing: '处理中',
-  resolved: '已解决',
-  closed: '已关闭',
-}
+  pending: "待处理",
+  processing: "处理中",
+  resolved: "已解决",
+  closed: "已关闭",
+};
 
-const STATUS_VARIANTS: Record<FeedbackStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  pending: 'outline',
-  processing: 'default',
-  resolved: 'secondary',
-  closed: 'destructive',
-}
+const STATUS_VARIANTS: Record<
+  FeedbackStatus,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  pending: "outline",
+  processing: "default",
+  resolved: "secondary",
+  closed: "destructive",
+};
 
 const TYPE_COLORS: Record<FeedbackType, string> = {
-  payment: 'bg-green-100 text-green-800',
-  bug: 'bg-red-100 text-red-800',
-  feature: 'bg-blue-100 text-blue-800',
-  other: 'bg-gray-100 text-gray-800',
-}
+  payment: "bg-green-100 text-green-800",
+  bug: "bg-red-100 text-red-800",
+  feature: "bg-blue-100 text-blue-800",
+  other: "bg-gray-100 text-gray-800",
+};
 
 export default function AdminFeedbacksPage() {
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([])
-  const [stats, setStats] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [selectedStatus, setSelectedStatus] = useState<string>('')
-  const [selectedType, setSelectedType] = useState<string>('')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null)
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedType, setSelectedType] = useState<string>("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(
+    null
+  );
   const [formData, setFormData] = useState({
-    status: 'processing' as FeedbackStatus,
-    adminNote: '',
-  })
+    status: "processing" as FeedbackStatus,
+    adminNote: "",
+  });
 
   useEffect(() => {
-    fetchFeedbacks()
-    fetchStats()
-  }, [selectedStatus, selectedType])
+    fetchFeedbacks();
+    fetchStats();
+  }, [selectedStatus, selectedType]);
 
   async function fetchFeedbacks() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const params = new URLSearchParams()
-      if (selectedStatus) params.append('status', selectedStatus)
-      if (selectedType) params.append('type', selectedType)
+      const params = new URLSearchParams();
+      if (selectedStatus) params.append("status", selectedStatus);
+      if (selectedType) params.append("type", selectedType);
 
-      const response = await fetch(`/api/admin/feedbacks?${params}`)
-      const data = await response.json()
+      const response = await fetch(`/api/admin/feedbacks?${params}`);
+      const data = await response.json();
 
       if (response.ok) {
-        setFeedbacks(data.feedbacks)
+        setFeedbacks(data.feedbacks);
       } else {
-        toast.error(data.error || '加载失败')
+        toast.error(data.error || "加载失败");
       }
     } catch (error) {
-      console.error('加载反馈失败:', error)
-      toast.error('加载失败')
+      console.error("加载反馈失败:", error);
+      toast.error("加载失败");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function fetchStats() {
-    setStatsLoading(true)
+    setStatsLoading(true);
     try {
-      const response = await fetch('/api/admin/feedbacks/stats')
-      const data = await response.json()
+      const response = await fetch("/api/admin/feedbacks/stats");
+      const data = await response.json();
 
       if (response.ok) {
-        setStats(data)
+        setStats(data);
       } else {
-        toast.error(data.error || '加载统计失败')
+        toast.error(data.error || "加载统计失败");
       }
     } catch (error) {
-      console.error('加载统计失败:', error)
-      toast.error('加载统计失败')
+      console.error("加载统计失败:", error);
+      toast.error("加载统计失败");
     } finally {
-      setStatsLoading(false)
+      setStatsLoading(false);
     }
   }
 
   const handleStatusUpdate = async () => {
-    if (!selectedFeedback) return
+    if (!selectedFeedback) return;
 
     try {
-      const response = await fetch(`/api/admin/feedbacks/${selectedFeedback.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: formData.status,
-          adminNote: formData.adminNote,
-        }),
-      })
+      const response = await fetch(
+        `/api/admin/feedbacks/${selectedFeedback.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: formData.status,
+            adminNote: formData.adminNote,
+          }),
+        }
+      );
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (response.ok) {
-        toast.success('状态已更新')
-        setIsDialogOpen(false)
-        setSelectedFeedback(null)
-        fetchFeedbacks()
-        fetchStats()
+        toast.success("状态已更新");
+        setIsDialogOpen(false);
+        setSelectedFeedback(null);
+        fetchFeedbacks();
+        fetchStats();
       } else {
-        toast.error(data.error || '更新失败')
+        toast.error(data.error || "更新失败");
       }
     } catch (error) {
-      console.error('更新状态失败:', error)
-      toast.error('更新失败')
+      console.error("更新状态失败:", error);
+      toast.error("更新失败");
     }
-  }
+  };
 
   const handleEditFeedback = (feedback: Feedback) => {
-    setSelectedFeedback(feedback)
+    setSelectedFeedback(feedback);
     setFormData({
       status: feedback.status,
-      adminNote: feedback.admin_note || '',
-    })
-    setIsDialogOpen(true)
-  }
+      adminNote: feedback.admin_note || "",
+    });
+    setIsDialogOpen(true);
+  };
 
-  const filteredFeedbacks = feedbacks
+  const filteredFeedbacks = feedbacks;
 
   return (
     <div className="p-6 space-y-6">
@@ -180,7 +206,8 @@ export default function AdminFeedbacksPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {stats?.statsByStatus?.find((s: any) => s.status === 'pending')?.count || 0}
+                {stats?.statsByStatus?.find((s: any) => s.status === "pending")
+                  ?.count || 0}
               </p>
             </CardContent>
           </Card>
@@ -190,7 +217,8 @@ export default function AdminFeedbacksPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {stats?.statsByStatus?.find((s: any) => s.status === 'resolved')?.count || 0}
+                {stats?.statsByStatus?.find((s: any) => s.status === "resolved")
+                  ?.count || 0}
               </p>
             </CardContent>
           </Card>
@@ -204,12 +232,12 @@ export default function AdminFeedbacksPage() {
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
-            <Select value={selectedType} onValueChange={setSelectedType}>
+            <Select value={selectedType || 'all'} onValueChange={(v) => setSelectedType(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue>反馈类型</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部类型</SelectItem>
+                <SelectItem value="all">全部类型</SelectItem>
                 {Object.entries(TYPE_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
@@ -218,12 +246,12 @@ export default function AdminFeedbacksPage() {
               </SelectContent>
             </Select>
 
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <Select value={selectedStatus || 'all'} onValueChange={(v) => setSelectedStatus(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue>状态</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部状态</SelectItem>
+                <SelectItem value="all">全部状态</SelectItem>
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
@@ -232,7 +260,7 @@ export default function AdminFeedbacksPage() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" onClick={() => setSelectedStatus('')}>
+            <Button variant="outline" onClick={() => setSelectedStatus("")}>
               重置筛选
             </Button>
           </div>
@@ -269,14 +297,25 @@ export default function AdminFeedbacksPage() {
                         {TYPE_LABELS[feedback.type]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{feedback.title}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>{feedback.title}</div>
+                      {feedback.admin_note && (
+                        <div className="mt-1 text-xs text-gray-500 line-clamp-2">
+                          💬 {feedback.admin_note}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANTS[feedback.status]}>
                         {STATUS_LABELS[feedback.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell>{(feedback as any).profiles?.email || (feedback as any).profiles?.username || feedback.user_id}</TableCell>
                     <TableCell>
+                      {(feedback as any).profiles?.email ||
+                        (feedback as any).profiles?.username ||
+                        feedback.user_id}
+                    </TableCell>
+                    <TableCell suppressHydrationWarning>
                       {formatDistanceToNow(new Date(feedback.created_at), {
                         addSuffix: true,
                         locale: zhCN,
@@ -308,8 +347,14 @@ export default function AdminFeedbacksPage() {
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium">当前状态</Label>
-              <Badge variant={selectedFeedback ? STATUS_VARIANTS[selectedFeedback.status] : 'secondary'}>
-                {selectedFeedback ? STATUS_LABELS[selectedFeedback.status] : ''}
+              <Badge
+                variant={
+                  selectedFeedback
+                    ? STATUS_VARIANTS[selectedFeedback.status]
+                    : "secondary"
+                }
+              >
+                {selectedFeedback ? STATUS_LABELS[selectedFeedback.status] : ""}
               </Badge>
             </div>
 
@@ -324,7 +369,12 @@ export default function AdminFeedbacksPage() {
               <Label className="text-sm font-medium">设置新状态</Label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as FeedbackStatus })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    status: e.target.value as FeedbackStatus,
+                  })
+                }
                 className="w-full mt-1 p-2 border rounded-md"
               >
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -336,11 +386,19 @@ export default function AdminFeedbacksPage() {
             </div>
 
             <div>
-              <Label className="text-sm font-medium">管理员备注</Label>
+              <Label className="text-sm font-medium">管理员回复</Label>
+              {selectedFeedback?.admin_note && (
+                <div className="mt-1 mb-2 p-3 bg-blue-50 border border-blue-100 rounded text-sm text-blue-900">
+                  <span className="text-xs text-blue-500 font-medium block mb-1">当前回复</span>
+                  {selectedFeedback.admin_note}
+                </div>
+              )}
               <Textarea
                 value={formData.adminNote}
-                onChange={(e) => setFormData({ ...formData, adminNote: e.target.value })}
-                placeholder="请填写处理备注..."
+                onChange={(e) =>
+                  setFormData({ ...formData, adminNote: e.target.value })
+                }
+                placeholder={selectedFeedback?.admin_note ? "修改回复内容..." : "请填写回复内容..."}
                 rows={4}
               />
             </div>
@@ -349,13 +407,11 @@ export default function AdminFeedbacksPage() {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 取消
               </Button>
-              <Button onClick={handleStatusUpdate}>
-                更新状态
-              </Button>
+              <Button onClick={handleStatusUpdate}>更新状态</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
