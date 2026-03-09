@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import {
   Users,
@@ -39,7 +40,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex md:w-64 md:flex-col bg-white border-r">
         <div className="p-6">
           <Link href="/admin" className="flex items-center space-x-2">
-            <span className="text-2xl">🪨</span>
+            <Image
+              src="/logo.webp"
+              alt="Crusher Logo"
+              width={32}
+              height={32}
+            />
             <span className="text-xl font-bold">Crusher 管理后台</span>
           </Link>
         </div>
