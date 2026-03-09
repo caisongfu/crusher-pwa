@@ -2,6 +2,49 @@
 
 ***
 
+## 新建文档与透镜分析均未扣除积分
+
+**🔧 修复状态**：✅ 已修复
+
+**📅 记录日期**：2026-03-10
+
+**🏷️ BUG类型**：业务逻辑错误
+
+**📝 描述**：① `POST /api/documents` 创建文档时完全未扣除积分，仅写入文档记录；② `POST /api/insights` 分析接口虽有 `deductCredits` 调用，但底层依赖 Supabase RPC 函数 `deduct_credits`，该函数可能不存在或有缺陷，导致积分实际未被扣减；③ 捕获页面按钮文字为"提交并分析"，与实际行为（仅创建文档）不符。
+
+**💥 影响**：
+- 用户新建文档无需消耗积分，积分计费体系完全失效
+- 透镜 AI 分析同样不扣积分，服务成本无法回收
+- 前端页面虽显示积分预消耗提示，但实际无任何扣减，产生误导
+
+**💡 修复建议**：将 `deductCredits` 改为直接操作数据库表（更新 `profiles.credits` 并写入 `credit_transactions` 流水），绕过不可靠的 RPC；在文档创建接口加入积分校验与扣减；修正页面文案。
+
+### 修复过程
+
+1. 重写 `src/lib/credits.ts` 的 `deductCredits` 函数：查询当前余额 → 校验是否充足 → 带乐观锁更新 `profiles.credits` → 写入 `credit_transactions` 交易记录，完全绕过 RPC
+2. 在 `POST /api/documents` 中引入 `deductCredits` 和 `calculateCreditCost`，创建文档前先扣减积分，积分不足返回 402
+3. 将捕获页面描述从"每次分析按字数消耗积分"改为"新建文档按字数消耗积分"，副标题也同步更新
+4. 将表单内"预消耗 X 积分"改为"新建消耗 X 积分"，提交按钮文字从"提交并分析"改为"提交"
+
+### 修复文件
+
+- `src/lib/credits.ts`
+- `src/app/api/documents/route.ts`
+- `src/app/(main)/capture/page.tsx`
+- `src/components/documents/capture-form.tsx`
+
+### 修复结果
+
+**⏰ 修复时间**：2026-03-10
+
+**👤 修复人**：蔡松甫
+
+**✔️ 修复结果**：新建文档与透镜分析均会正确扣除积分；积分不足时两个接口均返回 402 并提示用户充值；前端文案与实际业务逻辑保持一致。
+
+**🔗 提交哈希**：待提交
+
+***
+
 ## Markdown 分析结果表格未渲染
 
 **🔧 修复状态**：✅ 已修复

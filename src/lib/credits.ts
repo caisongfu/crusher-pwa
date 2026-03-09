@@ -14,22 +14,52 @@ export async function deductCredits(
 ): Promise<DeductResult> {
   const supabase = createAdminClient()
 
-  const result = await supabase.rpc('deduct_credits', {
-    p_user_id: userId,
-    p_cost: cost,
-    p_description: description,
-    p_related_insight_id: insightId ?? null,
-  })
+  // 查询当前积分余额
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('credits')
+    .eq('id', userId)
+    .single()
 
-  const { data, error } = result as {
-    data: DeductResult | null
-    error: { message: string } | null
+  if (profileError || !profile) {
+    console.error('deductCredits: 用户不存在', profileError)
+    return { success: false, reason: 'user_not_found' }
   }
 
-  if (error) {
-    console.error('deductCredits RPC error:', error)
+  const currentCredits = (profile as any).credits as number
+  if (currentCredits < cost) {
+    return { success: false, reason: 'insufficient_credits' }
+  }
+
+  const newBalance = currentCredits - cost
+
+  // 扣减积分（带乐观锁：要求当前积分 >= cost 才执行）
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ credits: newBalance })
+    .eq('id', userId)
+    .gte('credits', cost)
+
+  if (updateError) {
+    console.error('deductCredits: 积分更新失败', updateError)
     return { success: false, reason: 'db_error' }
   }
 
-  return data as DeductResult
+  // 记录交易流水（失败不回滚，仅记录日志）
+  const { error: txError } = await supabase
+    .from('credit_transactions')
+    .insert({
+      user_id: userId,
+      amount: -cost,
+      balance_after: newBalance,
+      type: 'consumed',
+      description,
+      related_insight_id: insightId ?? null,
+    } as any)
+
+  if (txError) {
+    console.error('deductCredits: 交易记录写入失败', txError)
+  }
+
+  return { success: true, newBalance }
 }

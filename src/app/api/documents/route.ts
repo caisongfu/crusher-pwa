@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { deductCredits } from '@/lib/credits'
+import { calculateCreditCost } from '@/types'
 
 const CreateDocumentSchema = z.object({
   title: z.string().max(200).optional(),
@@ -43,8 +45,24 @@ export async function POST(request: NextRequest) {
     ? title.trim()
     : raw_content.slice(0, 20).replace(/\s+/g, ' ').trim()
 
-  // 服务端计算 char_count
+  // 服务端计算 char_count 和积分费用
   const char_count = raw_content.length
+  const creditCost = calculateCreditCost(char_count)
+
+  // 扣减积分（创建文档按字数收费）
+  const deductResult = await deductCredits(
+    user.id,
+    creditCost,
+    `新建文档：${resolvedTitle}`
+  )
+
+  if (!deductResult.success) {
+    const isInsufficient = deductResult.reason === 'insufficient_credits'
+    return NextResponse.json(
+      { success: false, error: isInsufficient ? '积分不足，请前往充值' : '扣费失败，请重试' },
+      { status: isInsufficient ? 402 : 500 }
+    )
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase

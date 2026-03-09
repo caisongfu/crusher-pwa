@@ -118,7 +118,7 @@ export function CaptureForm() {
         <VoiceButton onTranscript={handleTranscript} disabled={isSubmitting} />
         <div className="flex items-center gap-3">
           <span>{charCount.toLocaleString()} 字</span>
-          <span>预消耗 {creditCost} 积分</span>
+          <span>新建消耗 {creditCost} 积分</span>
           <span className={!canAfford && !isContentEmpty ? 'text-destructive font-medium' : ''}>
             剩余 {availableCredits} 积分
           </span>
@@ -141,7 +141,7 @@ export function CaptureForm() {
             提交中...
           </>
         ) : (
-          '提交并分析'
+          '提交'
         )}
       </Button>
     </form>
