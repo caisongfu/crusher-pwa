@@ -119,10 +119,30 @@ export function InsightResult({
       </div>
 
       {/* Markdown 内容 */}
-      <div className="px-4 py-4 prose prose-sm prose-zinc max-w-none">
+      <div className="px-4 py-4 prose prose-sm prose-zinc max-w-none overflow-x-auto">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeHighlight]}
+          components={{
+            table: ({ children }) => (
+              <div className="overflow-x-auto">
+                <table className="border-collapse w-full text-sm">{children}</table>
+              </div>
+            ),
+            thead: ({ children }) => (
+              <thead className="bg-zinc-50">{children}</thead>
+            ),
+            th: ({ children }) => (
+              <th className="border border-zinc-200 px-3 py-2 text-left font-semibold text-zinc-700">
+                {children}
+              </th>
+            ),
+            td: ({ children }) => (
+              <td className="border border-zinc-200 px-3 py-2 text-zinc-600">
+                {children}
+              </td>
+            ),
+          }}
         >
           {content}
         </ReactMarkdown>

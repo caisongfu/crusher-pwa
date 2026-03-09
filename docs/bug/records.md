@@ -2,6 +2,81 @@
 
 ***
 
+## Markdown 分析结果表格未渲染
+
+**🔧 修复状态**：✅ 已修复
+
+**📅 记录日期**：2026-03-10
+
+**🏷️ BUG类型**：UI 显示问题
+
+**📝 描述**：透镜分析结果页面存在两处 Bug：① `@tailwindcss/typography` 插件未安装，`prose` 相关类（`prose-sm`、`prose-zinc` 等）完全无效，导致 Markdown 内容（标题、列表、代码块、表格等）均以纯文本渲染，无任何格式样式；② `InsightResult` 父容器设置了 `overflow-hidden`，且表格缺少横向滚动包裹层，超出宽度的表格内容被直接裁剪，表格不可见。
+
+**💥 影响**：
+- 所有透镜分析结果的 Markdown 格式失效，用户体验严重下降
+- 分析结果中的表格内容完全不可见，信息丢失
+
+**💡 修复建议**：安装 `@tailwindcss/typography` 并在 Tailwind 配置中注册；为 ReactMarkdown 添加自定义 `table` 组件，用 `overflow-x-auto` 容器包裹，同时为 `th`、`td` 补充边框和内边距样式。
+
+### 修复过程
+
+1. 执行 `npm install @tailwindcss/typography` 安装插件
+2. 在 `tailwind.config.ts` 的 `plugins` 数组中注册 `require('@tailwindcss/typography')`
+3. 在 `insight-result.tsx` 的 prose 容器增加 `overflow-x-auto`
+4. 为 `ReactMarkdown` 添加 `components` 自定义渲染：`table` 用 `overflow-x-auto` div 包裹，`thead` 设背景色，`th`/`td` 统一边框、内边距、字色样式
+
+### 修复文件
+
+- `tailwind.config.ts`
+- `src/components/insights/insight-result.tsx`
+
+### 修复结果
+
+**⏰ 修复时间**：2026-03-10
+
+**👤 修复人**：蔡松甫
+
+**✔️ 修复结果**：Markdown 格式正常渲染，表格可见且支持横向滚动，分析结果展示效果完整。
+
+**🔗 提交哈希**：TBD
+
+***
+
+## 管理反馈页三处运行时错误及 SSR Hydration 不匹配
+
+**🔧 修复状态**：✅ 已修复
+
+**📅 记录日期**：2026-03-09
+
+**🏷️ BUG类型**：UI 显示问题
+
+**📝 描述**：管理后台用户反馈页面存在三处 Bug：①处理对话框中对 `selectedFeedback` 使用了非空断言 `!`，在 Dialog 先于状态赋值渲染时抛出 `Cannot read properties of null (reading 'status')`；②筛选器"全部类型"和"全部状态"的 `<SelectItem value="">` 使用空字符串，触发 Radix UI 警告（空字符串被保留用于清除选择）；③表格中 `formatDistanceToNow` 生成的相对时间在服务端与客户端存在时间差，引发 SSR Hydration 不匹配警告。
+
+**💥 影响**：
+- 点击"处理"按钮时可能崩溃，Dialog 无法正常展示状态信息
+- 控制台持续输出 Radix UI SelectItem 警告，筛选功能存在潜在异常
+- 控制台输出 hydration 不匹配警告，影响 React 渲染可靠性
+
+**💡 修复建议**：将 `!` 非空断言改为条件判断；SelectItem 空字符串改为 `'all'` 哨兵值并在 `onValueChange` 中做映射；对含相对时间的 `<TableCell>` 加 `suppressHydrationWarning`。
+
+### 修复过程
+
+1. 将 Dialog 中 `STATUS_VARIANTS[selectedFeedback!.status]` 改为条件表达式 `selectedFeedback ? STATUS_VARIANTS[selectedFeedback.status] : 'secondary'`，`STATUS_LABELS` 同理
+2. 将两个筛选 Select 的"全部"选项从 `value=""` 改为 `value="all"`，`onValueChange` 中将 `'all'` 映射回空字符串，`value` 绑定使用 `selectedXxx || 'all'`
+3. 对 `formatDistanceToNow` 所在的 `<TableCell>` 添加 `suppressHydrationWarning` 属性
+
+### 修复文件
+
+- `src/app/admin/feedbacks/page.tsx`
+
+**👤 修复人**：蔡松甫
+
+**✨ 修复结果**：三处报错消除，Dialog 可正常渲染，筛选器无警告，hydration 不匹配不再出现。
+
+**🔗 提交哈希**：`a66f3e69fb7ec193ee738d6074a122227df46746`
+
+***
+
 ## 管理后台用户反馈入口缺失及多处显示 Bug
 
 **🔧 修复状态**：✅ 已修复
