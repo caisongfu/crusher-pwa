@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -22,6 +21,7 @@ interface User {
   id: string;
   email: string;
   username: string | null;
+  role: 'user' | 'admin';
   credits: number;
   disable_type: 'normal' | 'login_disabled' | 'usage_disabled';
   created_at: string;
@@ -160,6 +160,7 @@ export function UserList({ onSelectUser }: UserListProps) {
           <TableHeader>
             <TableRow>
               <TableHead>用户</TableHead>
+              <TableHead>类型</TableHead>
               <TableHead>积分</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>注册时间</TableHead>
@@ -169,13 +170,13 @@ export function UserList({ onSelectUser }: UserListProps) {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   加载中...
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   暂无用户
                 </TableCell>
               </TableRow>
@@ -192,13 +193,14 @@ export function UserList({ onSelectUser }: UserListProps) {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
+                      {user.role === 'admin' ? '管理员' : '普通用户'}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{user.credits}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        user.disable_type === 'normal' ? 'default' : 'destructive'
-                      }
-                    >
+                    <Badge variant={user.disable_type === 'normal' ? 'default' : 'destructive'}>
                       {user.disable_type === 'normal'
                         ? '正常'
                         : user.disable_type === 'login_disabled'

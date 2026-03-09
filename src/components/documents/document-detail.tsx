@@ -7,6 +7,8 @@ import type { Document, LensType } from "@/types";
 import { markdownToPlainText } from "@/lib/utils";
 import { LensSelector } from "@/components/insights/lens-selector";
 import { InsightResult } from "@/components/insights/insight-result";
+import { createClient } from "@/lib/supabase/client";
+import { useAuthStore } from "@/store/auth";
 
 const DETAIL_TIMEOUT_MS = 15_000;
 
@@ -21,15 +23,31 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isBackground, setIsBackground] = useState(false);
-  const [copiedRawMode, setCopiedRawMode] = useState<'md' | 'txt' | null>(null);
+  const [copiedRawMode, setCopiedRawMode] = useState<"md" | "txt" | null>(null);
 
+  const { updateCredits } = useAuthStore();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const handleCopyRaw = async (e: React.MouseEvent, mode: 'md' | 'txt') => {
+  const refreshCredits = async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("credits")
+      .eq("id", user.id)
+      .single();
+    if (data) updateCredits(data.credits);
+  };
+
+  const handleCopyRaw = async (e: React.MouseEvent, mode: "md" | "txt") => {
     e.stopPropagation();
     // raw_content 是纯文本，md 模式直接复制，txt 模式去除任何 Markdown 标记
-    const text = mode === 'md' ? document.raw_content : markdownToPlainText(document.raw_content);
+    const text =
+      mode === "md"
+        ? document.raw_content
+        : markdownToPlainText(document.raw_content);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedRawMode(mode);
@@ -121,6 +139,7 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
 
       if (!wentBackground) {
         toast.success("分析完成");
+        await refreshCredits();
       }
     } catch (error: unknown) {
       if (!wentBackground) {
@@ -155,14 +174,17 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
     <div className="container max-w-4xl mx-auto p-4 md:p-8 space-y-6">
       {/* 原文区域（可折叠） */}
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="w-full flex items-center justify-between px-4 py-3 text-left"
+          onKeyDown={(e) => e.key === "Enter" && setIsCollapsed(!isCollapsed)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left cursor-pointer"
         >
           <span className="font-medium text-sm">原文内容</span>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
-              {(['md', 'txt'] as const).map((mode) => (
+              {(["md", "txt"] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={(e) => handleCopyRaw(e, mode)}
@@ -174,7 +196,9 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
-                  <span>{copiedRawMode === mode ? "已复制" : `复制${mode}`}</span>
+                  <span>
+                    {copiedRawMode === mode ? "已复制" : `复制${mode}`}
+                  </span>
                 </button>
               ))}
             </div>
@@ -182,7 +206,7 @@ export function DocumentDetail({ document }: DocumentDetailProps) {
               {document.char_count} 字 · {isCollapsed ? "展开" : "收起"}
             </span>
           </div>
-        </button>
+        </div>
         {!isCollapsed && (
           <div className="px-4 pb-4 text-sm text-zinc-700 whitespace-pre-wrap leading-relaxed border-t border-zinc-100">
             {document.raw_content}

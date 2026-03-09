@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/supabase/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser, createAdminClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 // 请求参数验证
@@ -18,8 +17,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
-    const { data: profile } = await (supabase as any)
+    const adminSupabase = createAdminClient();
+    const { data: profile } = await (adminSupabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 查询待审批操作
-    const { data: pendingTransaction, error: queryError } = await (supabase as any)
+    const { data: pendingTransaction, error: queryError } = await (adminSupabase as any)
       .from('pending_credit_transactions')
       .select('*')
       .eq('id', validatedData.transactionId)
@@ -64,7 +63,7 @@ export async function POST(req: NextRequest) {
     // 开始事务
     if (validatedData.action === 'approve') {
       // 获取当前积分余额
-      const { data: currentProfile } = await (supabase as any)
+      const { data: currentProfile } = await (adminSupabase as any)
         .from('profiles')
         .select('credits')
         .eq('id', pendingTransaction.user_id)
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
       const newBalance = currentProfile.credits + pendingTransaction.amount;
 
       // 更新用户积分
-      const { error: updateError } = await (supabase as any)
+      const { error: updateError } = await (adminSupabase as any)
         .from('profiles')
         .update({ credits: newBalance, updated_at: new Date().toISOString() })
         .eq('id', pendingTransaction.user_id);
@@ -95,7 +94,7 @@ export async function POST(req: NextRequest) {
       }
 
       // 记录到积分流水
-      await (supabase as any).from('credit_transactions').insert({
+      await (adminSupabase as any).from('credit_transactions').insert({
         user_id: pendingTransaction.user_id,
         amount: pendingTransaction.amount,
         balance_after: newBalance,
@@ -114,7 +113,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 更新待审批操作状态
-    const { error: updateError } = await (supabase as any)
+    const { error: updateError } = await (adminSupabase as any)
       .from('pending_credit_transactions')
       .update({
         status: validatedData.action === 'approve' ? 'approved' : 'rejected',
@@ -149,8 +148,8 @@ async function sendCreditNotification(
   description: string
 ) {
   try {
-    const supabase = await createClient();
-    const { data: profile } = await (supabase as any)
+    const adminSupabase = createAdminClient();
+    const { data: profile } = await (adminSupabase as any)
       .from('profiles')
       .select('email')
       .eq('id', userId)

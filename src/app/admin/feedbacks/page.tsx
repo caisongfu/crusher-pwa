@@ -308,8 +308,8 @@ export default function AdminFeedbacksPage() {
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium">当前状态</Label>
-              <Badge variant={STATUS_VARIANTS[selectedFeedback!.status]}>
-                {STATUS_LABELS[selectedFeedback!.status]}
+              <Badge variant={selectedFeedback ? STATUS_VARIANTS[selectedFeedback.status] : 'secondary'}>
+                {selectedFeedback ? STATUS_LABELS[selectedFeedback.status] : ''}
               </Badge>
             </div>
 

@@ -1,7 +1,7 @@
 // src/components/documents/voice-button.tsx
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Mic, MicOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -52,11 +52,12 @@ declare global {
 
 export function VoiceButton({ onTranscript, disabled }: VoiceButtonProps) {
   const [isRecording, setIsRecording] = useState(false)
+  const [isSupported, setIsSupported] = useState(false)
   const recognitionRef = useRef<any>(null)
 
-  const isSupported =
-    typeof window !== 'undefined' &&
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+  useEffect(() => {
+    setIsSupported('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+  }, [])
 
   const startRecording = useCallback(() => {
     if (!isSupported) {

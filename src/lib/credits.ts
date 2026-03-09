@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 interface DeductResult {
   success: boolean
@@ -12,7 +12,7 @@ export async function deductCredits(
   description: string,
   insightId?: string
 ): Promise<DeductResult> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const result = await supabase.rpc('deduct_credits', {
     p_user_id: userId,
