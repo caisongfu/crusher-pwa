@@ -2,6 +2,44 @@
 
 ***
 
+## 管理后台用户反馈入口缺失及多处显示 Bug
+
+**🔧 修复状态**：✅ 已修复
+
+**📅 记录日期**：2026-03-09
+
+**🏷️ BUG类型**：UI 显示问题
+
+**📝 描述**：管理后台侧边栏导航中缺少"用户反馈"、"公告管理"、"提示词管理"三个入口，管理员无法通过侧边栏导航到对应页面。同时顶部标题使用 `startsWith` 匹配导致所有子页面均显示"用户管理"，以及反馈列表中用户信息列因缺少 JSX 表达式包裹 `{}` 而渲染为字面字符串。
+
+**💥 影响**：
+- 管理员无法通过导航访问用户反馈、公告管理、提示词管理页面，相关功能形同虚设
+- 管理后台所有子页面顶部标题均错误显示为"用户管理"
+- 反馈列表"用户"列显示 `(feedback.profiles?.email || ...)` 字面文字，无法查看真实用户信息
+
+**💡 修复建议**：在 `admin-layout.tsx` 导航数组中补充缺失的三个入口；修正顶部标题的路径匹配逻辑；在 feedbacks 页面中为用户信息表达式添加 `{}`。
+
+### 修复过程
+
+1. 在 `admin-layout.tsx` 的 `navigation` 数组中追加三条导航项：用户反馈（`/admin/feedbacks`）、公告管理（`/admin/announcements`）、提示词管理（`/admin/prompts`），并引入对应 lucide 图标
+2. 修正顶部标题匹配逻辑，将 `pathname.startsWith(item.href)` 改为 `pathname === item.href || pathname.startsWith(item.href + '/')`，避免 `/admin` 前缀误匹配所有子路由
+3. 修复 `feedbacks/page.tsx` 第 278 行：将 `(feedback.profiles?.email || ...)` 包裹为 JSX 表达式 `{(feedback as any).profiles?.email || ...}`
+
+### 修复文件
+
+- `src/components/admin/admin-layout.tsx`
+- `src/app/admin/feedbacks/page.tsx`
+
+### 修复结果
+
+**⏰ 修复时间**：2026-03-09
+
+**👤 修复人**：蔡松甫
+
+**✔️ 修复结果**：管理后台侧边栏新增用户反馈、公告管理、提示词管理三个入口；顶部标题正确显示当前页面名称；反馈列表用户列正常显示邮箱或用户名。
+
+***
+
 ## logo错误
 
 **🔧 修复状态**：⌛️ dai修复

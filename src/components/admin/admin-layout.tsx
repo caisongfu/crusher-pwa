@@ -9,6 +9,9 @@ import {
   CreditCard,
   BarChart3,
   LogOut,
+  MessageSquare,
+  Bell,
+  FileText,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -19,6 +22,9 @@ const navigation = [
   { name: '用户管理', href: '/admin', icon: Users },
   { name: '订单管理', href: '/admin/orders', icon: CreditCard },
   { name: '用量统计', href: '/admin/stats', icon: BarChart3 },
+  { name: '用户反馈', href: '/admin/feedbacks', icon: MessageSquare },
+  { name: '公告管理', href: '/admin/announcements', icon: Bell },
+  { name: '提示词管理', href: '/admin/prompts', icon: FileText },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -88,7 +94,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <header className="bg-white border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold text-gray-900">
-              {navigation.find((item) => pathname.startsWith(item.href))?.name || '管理后台'}
+              {navigation.find((item) => pathname === item.href || pathname.startsWith(item.href + '/'))?.name || '管理后台'}
             </h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">管理员</span>

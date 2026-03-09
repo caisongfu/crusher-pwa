@@ -275,7 +275,7 @@ export default function AdminFeedbacksPage() {
                         {STATUS_LABELS[feedback.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell>(feedback.profiles?.email || feedback.profiles?.username || feedback.user_id)</TableCell>
+                    <TableCell>{(feedback as any).profiles?.email || (feedback as any).profiles?.username || feedback.user_id}</TableCell>
                     <TableCell>
                       {formatDistanceToNow(new Date(feedback.created_at), {
                         addSuffix: true,
